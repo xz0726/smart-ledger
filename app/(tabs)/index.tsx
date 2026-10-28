@@ -1,18 +1,24 @@
-import React, { useCallback } from 'react';
-import { ScrollView, View, Text, RefreshControl, StyleSheet } from 'react-native';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { ScrollView, View, Text, RefreshControl, Animated, StyleSheet } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import StatCard from '../../src/components/StatCard';
 import InputBar from '../../src/components/InputBar';
+import MonthSwitcher from '../../src/components/MonthSwitcher';
+import CategoryBreakdownCard from '../../src/components/CategoryBreakdownCard';
+import DailyTrendChart from '../../src/components/charts/DailyTrendChart';
+import QuickAddBar from '../../src/components/QuickAddBar';
+import type { QuickItemWithCategory } from '../../src/types';
 import { useStats } from '../../src/hooks/useStats';
 import { useExpenses } from '../../src/hooks/useExpenses';
 import { useBudget } from '../../src/hooks/useBudget';
-import { formatAmount, getCurrentMonth, formatMonth } from '../../src/utils/format';
-import { CATEGORY_COLORS } from '../../src/utils/colors';
+import { useMonthStore } from '../../src/stores/monthStore';
+import { useThemeColors, type ThemeColors } from '../../src/theme';
+import { formatAmount, formatMonth, getTodayDate, isCurrentMonth } from '../../src/utils/format';
 
 export default function Dashboard() {
-  const month = getCurrentMonth();
-  const { overview, categoryStats, dailyTrend, loading, reload: reloadStats } = useStats(month);
+  const { month, setMonth } = useMonthStore();
+  const { overview, categoryStats, dailyTrend, fixedSummary, loading, reload: reloadStats } = useStats(month);
   const { add } = useExpenses(month);
   const { budgets, loading: budgetLoading, setBudget, reload: reloadBudgets } = useBudget(month);
 
@@ -27,48 +33,77 @@ export default function Dashboard() {
   // 切换到仪表盘时自动刷新数据
   useFocusEffect(useCallback(() => { reloadStats(); reloadBudgets(); }, [reloadStats, reloadBudgets]));
 
+  // 快捷记账：点一下记一笔（记入今天），随后轻提示
+  const [toast, setToast] = useState<string | null>(null);
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((text: string) => {
+    setToast(text);
+    toastOpacity.setValue(0);
+    Animated.timing(toastOpacity, { toValue: 1, duration: 150, useNativeDriver: true }).start();
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => {
+      Animated.timing(toastOpacity, { toValue: 0, duration: 250, useNativeDriver: true }).start(() => setToast(null));
+    }, 1600);
+  }, [toastOpacity]);
+
+  const handleQuickAdd = useCallback(async (item: QuickItemWithCategory) => {
+    await handleAddExpense(item.amount, item.category_id, getTodayDate(), item.name);
+    showToast(`已记 · ${item.name} ${formatAmount(item.amount)}`);
+  }, [handleAddExpense, showToast]);
+
+  const c = useThemeColors();
+  const s = useMemo(() => createStyles(c), [c]);
+
+  const balance = (overview?.totalIncome || 0) - (overview?.totalExpense || 0);
+
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
       <ScrollView style={s.flex1} keyboardShouldPersistTaps="handled" refreshControl={
         <RefreshControl refreshing={loading || budgetLoading} onRefresh={() => { reloadStats(); reloadBudgets(); }} tintColor="#6366f1" />
       }>
-        <View style={s.header}>
-          <Text style={s.headerTitle}>📊 {formatMonth(month)}</Text>
-        </View>
+        <MonthSwitcher month={month} onChange={setMonth} />
 
+        {/* 收支总览 */}
         <View style={s.statsRow}>
           <StatCard title="总支出" value={formatAmount(overview?.totalExpense || 0)}
-            subtitle={overview ? `环比 ${overview.monthOverMonth >= 0 ? '+' : ''}${overview.monthOverMonth.toFixed(1)}%` : ''}
-            trend={overview && overview.monthOverMonth > 0 ? 'up' : overview && overview.monthOverMonth < 0 ? 'down' : 'neutral'} />
+            subtitle={overview ? (overview.hasPrevData
+              ? `环比 ${overview.monthOverMonth >= 0 ? '+' : ''}${overview.monthOverMonth.toFixed(1)}%`
+              : '无上月数据') : ''}
+            trend={overview && overview.hasPrevData
+              ? (overview.monthOverMonth > 0 ? 'up' : overview.monthOverMonth < 0 ? 'down' : 'neutral')
+              : 'neutral'} />
+          <StatCard title="总收入" value={formatAmount(overview?.totalIncome || 0)} color="#22c55e" />
+        </View>
+        <View style={s.statsRow}>
           <StatCard title="日均" value={formatAmount(overview?.dailyAverage || 0)}
             subtitle={`${overview?.recordCount || 0} 笔记录`} color="#3b82f6" />
+          <StatCard title="结余" value={formatAmount(balance)} color={balance >= 0 ? '#22c55e' : '#ef4444'} />
         </View>
 
-        {/* 分类占比 */}
+        {/* 每日支出趋势 */}
         <View style={s.card}>
-          <Text style={s.cardTitle}>分类占比</Text>
-          {categoryStats.length === 0 ? (
-            <Text style={s.empty}>暂无数据</Text>
-          ) : (
-            <View>
-              {categoryStats.filter(d => d.total > 0).slice(0, 6).map(d => (
-                <View key={d.category_id} style={s.catRow}>
-                  <View style={s.catLeft}>
-                    <Text>{d.category_icon}</Text>
-                    <Text style={s.catName}>{d.category_name}</Text>
-                  </View>
-                  <View style={s.catRight}>
-                    <View style={s.bar}>
-                      <View style={[s.barFill, { width: `${Math.min(d.percentage, 100)}%`, backgroundColor: d.category_color }]} />
-                    </View>
-                    <Text style={s.catPct}>{d.percentage.toFixed(0)}%</Text>
-                    <Text style={s.catAmt}>¥{d.total.toFixed(0)}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
+          <Text style={s.cardTitle}>📈 每日支出趋势</Text>
+          <DailyTrendChart data={dailyTrend} month={month} />
         </View>
+
+        {/* 快捷记账：固定金额点一下记一笔 */}
+        <QuickAddBar onQuickAdd={handleQuickAdd} />
+
+        {/* 分类占比（条形 / 饼图切换） */}
+        <CategoryBreakdownCard data={categoryStats} />
+
+        {/* 固定收支汇总 */}
+        {fixedSummary && (fixedSummary.expenseTotal > 0 || fixedSummary.incomeTotal > 0) && (
+          <View style={s.card}>
+            <Text style={s.cardTitle}>🔁 固定收支</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={{ fontSize: 13, color: c.text }}>本月固定支出 ¥{fixedSummary.expenseTotal.toFixed(0)}</Text>
+              <Text style={{ fontSize: 13, color: '#22c55e' }}>固定收入 ¥{fixedSummary.incomeTotal.toFixed(0)}</Text>
+            </View>
+          </View>
+        )}
 
         {/* 预算预警 */}
         {budgets.length > 0 && (
@@ -83,13 +118,13 @@ export default function Dashboard() {
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Text style={{ fontSize: 14, marginRight: 4 }}>{b.category_icon}</Text>
-                      <Text style={{ fontSize: 14, color: '#1e293b' }}>{b.category_name}</Text>
+                      <Text style={{ fontSize: 14, color: c.text }}>{b.category_name}</Text>
                     </View>
-                    <Text style={{ fontSize: 12, color: isOver ? '#ef4444' : isWarn ? '#f59e0b' : '#64748b' }}>
+                    <Text style={{ fontSize: 12, color: isOver ? '#ef4444' : isWarn ? '#f59e0b' : c.textSecondary }}>
                       ¥{b.spent.toFixed(0)} / ¥{b.amount.toFixed(0)}
                     </Text>
                   </View>
-                  <View style={{ height: 8, backgroundColor: '#f1f5f9', borderRadius: 4, overflow: 'hidden' }}>
+                  <View style={{ height: 8, backgroundColor: c.subtle, borderRadius: 4, overflow: 'hidden' }}>
                     <View style={{ height: '100%', width: `${pct}%`, borderRadius: 4, backgroundColor: isOver ? '#ef4444' : isWarn ? '#f59e0b' : b.category_color }} />
                   </View>
                 </View>
@@ -100,27 +135,34 @@ export default function Dashboard() {
 
         <View style={{ height: 16 }} />
       </ScrollView>
+
+      {/* 查看历史月时提醒：新记账默认记入今天 */}
+      {!isCurrentMonth(month) && (
+        <View style={s.histHint}>
+          <Text style={s.histHintText}>⏪ 正在查看 {formatMonth(month)}，新记账默认记入今天</Text>
+        </View>
+      )}
       <InputBar onAddExpense={handleAddExpense} />
+
+      {/* 快捷记账轻提示 */}
+      {toast && (
+        <Animated.View pointerEvents="none" style={[s.toast, { opacity: toastOpacity }]}>
+          <Text style={s.toastText}>{toast}</Text>
+        </Animated.View>
+      )}
     </SafeAreaView>
   );
 }
 
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#f8fafc' },
+const createStyles = (c: ThemeColors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.background },
   flex1: { flex: 1 },
-  header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 },
-  headerTitle: { fontSize: 18, fontWeight: '600', color: '#1e293b' },
   statsRow: { flexDirection: 'row', paddingHorizontal: 12, marginBottom: 16 },
-  card: { backgroundColor: '#fff', marginHorizontal: 16, borderRadius: 12, padding: 16, marginBottom: 16, elevation: 1 },
-  cardTitle: { fontSize: 14, fontWeight: '600', color: '#1e293b', marginBottom: 12 },
-  empty: { color: '#64748b', textAlign: 'center', paddingVertical: 24 },
-  catRow: { marginBottom: 10 },
-  catLeft: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-  catName: { fontSize: 13, color: '#1e293b', marginLeft: 6 },
-  catRight: { flexDirection: 'row', alignItems: 'center' },
-  bar: { flex: 1, height: 8, backgroundColor: '#f1f5f9', borderRadius: 4, overflow: 'hidden', marginRight: 8 },
-  barFill: { height: '100%', borderRadius: 4 },
-  catPct: { fontSize: 12, color: '#64748b', width: 36, textAlign: 'right' },
-  catAmt: { fontSize: 12, color: '#64748b', width: 60, textAlign: 'right' },
+  card: { backgroundColor: c.card, marginHorizontal: 16, borderRadius: 12, padding: 16, marginBottom: 16, elevation: 1 },
+  cardTitle: { fontSize: 14, fontWeight: '600', color: c.text, marginBottom: 12 },
   budgetRow: { marginBottom: 12 },
+  histHint: { backgroundColor: c.histHintBg, paddingHorizontal: 16, paddingVertical: 6 },
+  histHintText: { fontSize: 12, color: c.histHintText, textAlign: 'center' },
+  toast: { position: 'absolute', bottom: 72, alignSelf: 'center', backgroundColor: 'rgba(30,41,59,0.92)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, elevation: 3 },
+  toastText: { fontSize: 13, color: '#fff', fontWeight: '500' },
 });

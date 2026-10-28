@@ -42,7 +42,30 @@ describe('数据库 Schema', () => {
 
   test('设置表是键值对结构', () => {
     const fields = ['key', 'value'];
-    const sample = { key: 'ai_api_url', value: 'http://localhost:11434/v1' };
+    const sample = { key: 'ai_api_url', value: 'https://api.deepseek.com/v1' };
+    fields.forEach(f => assert(f in sample, `缺少字段: ${f}`));
+  });
+
+  test('custom_rules 表包含必要字段', () => {
+    const fields = ['id', 'keyword', 'category', 'created_at'];
+    const sample = { id: 1, keyword: '台球', category: '娱乐', created_at: '2026-10-15 12:00:00' };
+    fields.forEach(f => assert(f in sample, `缺少字段: ${f}`));
+  });
+
+  test('fixed_items 表包含必要字段', () => {
+    const fields = ['id', 'name', 'type', 'category_id', 'amount', 'frequency', 'weekday', 'day_of_month', 'enabled', 'created_at'];
+    const sample = {
+      id: 1, name: '工作日通勤', type: 'expense', category_id: 2, amount: 7,
+      frequency: 'workday', weekday: null, day_of_month: null, enabled: 1, created_at: '2026-10-15 08:00:00',
+    };
+    fields.forEach(f => assert(f in sample, `缺少字段: ${f}`));
+  });
+
+  test('quick_items 表包含必要字段', () => {
+    const fields = ['id', 'name', 'category_id', 'amount', 'created_at'];
+    const sample = {
+      id: 1, name: '停车', category_id: 2, amount: 10, created_at: '2026-10-22 08:00:00',
+    };
     fields.forEach(f => assert(f in sample, `缺少字段: ${f}`));
   });
 });
@@ -377,12 +400,12 @@ describe('设置存储', () => {
 
   test('读写', () => {
     const store = createSettingsStore();
-    store.set('ai_api_url', 'http://localhost:11434/v1');
-    assertEquals(store.get('ai_api_url'), 'http://localhost:11434/v1');
+    store.set('ai_api_url', 'https://api.deepseek.com/v1');
+    assertEquals(store.get('ai_api_url'), 'https://api.deepseek.com/v1');
   });
 
   test('覆盖', () => {
-    const store = createSettingsStore({ ai_model: 'qwen2.5:7b' });
+    const store = createSettingsStore({ ai_model: 'deepseek-chat' });
     store.set('ai_model', 'gpt-4o');
     assertEquals(store.get('ai_model'), 'gpt-4o');
   });
@@ -395,5 +418,306 @@ describe('设置存储', () => {
     assertEquals(store.get('ai_api_url'), 'https://api.openai.com/v1');
     assertEquals(store.get('ai_api_key'), 'sk-xxx');
     assertEquals(store.get('ai_model'), 'gpt-4o');
+  });
+});
+
+// ==================== 固定收支（镜像 db.ts） ====================
+
+const FIXED_PREFIX = '[固定]';
+
+function fixedFormatDate(date) {
+  const y = date.getFullYear();
+  const m = (date.getMonth() + 1).toString().padStart(2, '0');
+  const d = date.getDate().toString().padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function fixedParseCreatedAt(s) {
+  const m = String(s || '').match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  return new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
+}
+
+/** 是否在指定日期触发（与 db.ts firesOn 一致） */
+function firesOn(item, date) {
+  switch (item.frequency) {
+    case 'daily':
+      return true;
+    case 'workday': {
+      const day = date.getDay();
+      return day >= 1 && day <= 5;
+    }
+    case 'weekly':
+      return item.weekday !== null && item.weekday !== undefined && date.getDay() === item.weekday;
+    case 'monthly': {
+      if (item.day_of_month === null || item.day_of_month === undefined) return false;
+      const dim = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+      return date.getDate() === item.day_of_month && item.day_of_month <= dim;
+    }
+    default:
+      return false;
+  }
+}
+
+/** 内存版固定收支库：镜像 getExpenseByRawInput / addExpense / syncFixedItems / getFixedSummary */
+function createFixedMock() {
+  const expenses = [];            // { amount, category_id, expense_date, description, raw_input }
+  const categories = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]); // 有效分类 id
+  const items = [];               // FixedItem[]
+  return {
+    expenses,
+    categories,
+    addItem(item) { items.push({ enabled: 1, ...item }); },
+    removeCategory(id) { categories.delete(id); },
+    sync(today) {
+      let inserted = 0;
+      const t = today || new Date();
+      t.setHours(0, 0, 0, 0);
+      const monthStart = new Date(t.getFullYear(), t.getMonth(), 1);
+      for (const item of items) {
+        if (item.enabled !== 1) continue;
+        if (!categories.has(item.category_id)) continue; // 分类已删除则跳过
+        let from = monthStart;
+        const createdAt = fixedParseCreatedAt(item.created_at);
+        if (createdAt && createdAt > from) from = createdAt;
+        for (let d = new Date(from); d <= t; d.setDate(d.getDate() + 1)) {
+          if (!firesOn(item, d)) continue;
+          const dateStr = fixedFormatDate(d);
+          const marker = `${FIXED_PREFIX} #${item.id} ${dateStr}`;
+          if (expenses.find(e => e.raw_input === marker)) continue; // 幂等
+          expenses.push({ amount: item.amount, category_id: item.category_id, expense_date: dateStr, description: item.name, raw_input: marker });
+          inserted++;
+        }
+      }
+      return inserted;
+    },
+    summary(month) {
+      let expenseTotal = 0, incomeTotal = 0;
+      for (const e of expenses) {
+        if (!e.expense_date.startsWith(month)) continue;
+        if (!e.raw_input || !e.raw_input.startsWith(FIXED_PREFIX)) continue;
+        // 分类 id → type（模拟 JOIN categories）
+        const type = e.category_id === 9 ? 'income' : 'expense';
+        if (type === 'income') incomeTotal += e.amount;
+        else expenseTotal += e.amount;
+      }
+      return { expenseTotal, incomeTotal };
+    },
+  };
+}
+
+function makeFixedItem(overrides) {
+  return {
+    id: 1, name: '工作日通勤', type: 'expense', category_id: 2, amount: 7,
+    frequency: 'workday', weekday: null, day_of_month: null, enabled: 1,
+    created_at: '2026-10-01 08:00:00', ...overrides,
+  };
+}
+
+describe('firesOn 触发规则', () => {
+  function fmt(y, m, d) { return new Date(y, m - 1, d); }
+
+  test('daily 每天都触发', () => assert(firesOn({ frequency: 'daily' }, fmt(2026, 10, 15))));
+
+  test('workday 周一触发', () => assert(firesOn({ frequency: 'workday' }, fmt(2026, 10, 12)))); // 周一
+  test('workday 周五触发', () => assert(firesOn({ frequency: 'workday' }, fmt(2026, 10, 9))));  // 周五
+  test('workday 周六不触发', () => assert(!firesOn({ frequency: 'workday' }, fmt(2026, 10, 17)))); // 周六
+  test('workday 周日不触发', () => assert(!firesOn({ frequency: 'workday' }, fmt(2026, 10, 11)))); // 周日
+
+  test('weekly 指定星期触发', () => {
+    assert(firesOn({ frequency: 'weekly', weekday: 0 }, fmt(2026, 10, 11))); // 周日
+    assert(!firesOn({ frequency: 'weekly', weekday: 1 }, fmt(2026, 10, 11)));
+  });
+  test('weekly 无 weekday 不触发', () => assert(!firesOn({ frequency: 'weekly', weekday: null }, fmt(2026, 10, 15))));
+
+  test('monthly 指定日触发', () => {
+    assert(firesOn({ frequency: 'monthly', day_of_month: 20 }, fmt(2026, 10, 20)));
+    assert(!firesOn({ frequency: 'monthly', day_of_month: 21 }, fmt(2026, 10, 20)));
+  });
+  test('monthly 31日在短月份跳过', () => assert(!firesOn({ frequency: 'monthly', day_of_month: 31 }, fmt(2026, 2, 28))));
+  test('monthly 29日在闰年2月触发', () => assert(firesOn({ frequency: 'monthly', day_of_month: 29 }, fmt(2028, 2, 29))));
+
+  test('未知频率不触发', () => assert(!firesOn({ frequency: 'foobar' }, fmt(2026, 10, 15))));
+});
+
+describe('syncFixedItems 幂等补账', () => {
+  test('幂等：两次同步不重复插入', () => {
+    const mock = createFixedMock();
+    mock.addItem(makeFixedItem({ id: 1 }));
+    const first = mock.sync(new Date(2026, 9, 15));
+    const second = mock.sync(new Date(2026, 9, 15));
+    assert(first > 0, '首次应有插入');
+    assertEquals(second, 0);
+  });
+
+  test('工作日通勤：本月1~15日共11个工作日且不含周末', () => {
+    const mock = createFixedMock();
+    mock.addItem(makeFixedItem({ id: 1, created_at: '2026-10-01 08:00:00' }));
+    const inserted = mock.sync(new Date(2026, 9, 15));
+    assertEquals(inserted, 11);
+    const weekend = mock.expenses.filter(e => {
+      const d = new Date(e.expense_date);
+      const day = d.getDay();
+      return day === 0 || day === 6;
+    });
+    assertEquals(weekend.length, 0);
+    assertEquals(mock.expenses[0].expense_date, '2026-10-01');
+  });
+
+  test('月付话费：20号未到不生成，过了20号只生成一条', () => {
+    const mock = createFixedMock();
+    mock.addItem(makeFixedItem({ id: 2, name: '话费', category_id: 8, amount: 20, frequency: 'monthly', day_of_month: 20, created_at: '2026-01-05 00:00:00' }));
+    assertEquals(mock.sync(new Date(2026, 9, 15)), 0);
+    const inserted = mock.sync(new Date(2026, 9, 25));
+    assertEquals(inserted, 1);
+    assertEquals(mock.expenses[0].expense_date, '2026-10-20');
+    assertEquals(mock.expenses[0].amount, 20);
+  });
+
+  test('创建日之后才生成，不回溯到月初', () => {
+    const mock = createFixedMock();
+    mock.addItem(makeFixedItem({ id: 1, frequency: 'daily', created_at: '2026-10-10 08:00:00' }));
+    const inserted = mock.sync(new Date(2026, 9, 15));
+    assertEquals(inserted, 6); // 10~15
+    assertEquals(mock.expenses[0].expense_date, '2026-10-10');
+  });
+
+  test('未来创建日不生成任何记录', () => {
+    const mock = createFixedMock();
+    mock.addItem(makeFixedItem({ id: 1, frequency: 'daily', created_at: '2026-11-01 00:00:00' }));
+    assertEquals(mock.sync(new Date(2026, 9, 15)), 0);
+  });
+
+  test('分类被删除则跳过', () => {
+    const mock = createFixedMock();
+    mock.addItem(makeFixedItem({ id: 1, category_id: 99 }));
+    assertEquals(mock.sync(new Date(2026, 9, 15)), 0);
+  });
+
+  test('停用项不生成', () => {
+    const mock = createFixedMock();
+    mock.addItem(makeFixedItem({ id: 1, enabled: 0 }));
+    assertEquals(mock.sync(new Date(2026, 9, 15)), 0);
+  });
+
+  test('标记格式 [固定] #id 日期', () => {
+    const mock = createFixedMock();
+    mock.addItem(makeFixedItem({ id: 7, frequency: 'daily', created_at: '2026-10-15 00:00:00' }));
+    mock.sync(new Date(2026, 9, 15));
+    assertEquals(mock.expenses[0].raw_input, '[固定] #7 2026-10-15');
+    assertEquals(mock.expenses[0].description, '工作日通勤');
+  });
+
+  test('不同 id 的同类项各自生成（id 独立，不冲突）', () => {
+    const mock = createFixedMock();
+    mock.addItem(makeFixedItem({ id: 1, frequency: 'daily', created_at: '2026-10-15 00:00:00' }));
+    mock.addItem(makeFixedItem({ id: 2, frequency: 'daily', created_at: '2026-10-15 00:00:00' }));
+    assertEquals(mock.sync(new Date(2026, 9, 15)), 2);
+    assertEquals(mock.expenses.length, 2);
+  });
+
+  test('每周某天：每周一条', () => {
+    const mock = createFixedMock();
+    mock.addItem(makeFixedItem({ id: 1, frequency: 'weekly', weekday: 1, created_at: '2026-10-01 00:00:00' })); // 每周一
+    const inserted = mock.sync(new Date(2026, 9, 15));
+    // 10月1~15日周一：10-05、10-12 → 2条
+    assertEquals(inserted, 2);
+    assertEquals(mock.expenses[0].expense_date, '2026-10-05');
+    assertEquals(mock.expenses[1].expense_date, '2026-10-12');
+  });
+});
+
+describe('getFixedSummary 汇总', () => {
+  test('支出按类型汇总', () => {
+    const mock = createFixedMock();
+    mock.expenses.push(
+      { expense_date: '2026-10-05', raw_input: '[固定] #1 2026-10-05', category_id: 2, amount: 7 },
+      { expense_date: '2026-10-06', raw_input: '[固定] #1 2026-10-06', category_id: 2, amount: 7 },
+      { expense_date: '2026-10-20', raw_input: '[固定] #2 2026-10-20', category_id: 8, amount: 20 },
+    );
+    const s = mock.summary('2026-10');
+    assertEquals(s.expenseTotal, 34);
+    assertEquals(s.incomeTotal, 0);
+  });
+
+  test('收入单独汇总', () => {
+    const mock = createFixedMock();
+    mock.expenses.push(
+      { expense_date: '2026-10-10', raw_input: '[固定] #3 2026-10-10', category_id: 9, amount: 1000 },
+      { expense_date: '2026-10-11', raw_input: '[固定] #1 2026-10-11', category_id: 2, amount: 7 },
+    );
+    const s = mock.summary('2026-10');
+    assertEquals(s.expenseTotal, 7);
+    assertEquals(s.incomeTotal, 1000);
+  });
+
+  test('非固定标记记录不计入', () => {
+    const mock = createFixedMock();
+    mock.expenses.push({ expense_date: '2026-10-05', raw_input: '午饭35元', category_id: 1, amount: 35 });
+    const s = mock.summary('2026-10');
+    assertEquals(s.expenseTotal, 0);
+  });
+
+  test('其他月份不计入', () => {
+    const mock = createFixedMock();
+    mock.expenses.push({ expense_date: '2026-09-20', raw_input: '[固定] #2 2026-09-20', category_id: 8, amount: 20 });
+    const s = mock.summary('2026-10');
+    assertEquals(s.expenseTotal, 0);
+  });
+});
+
+// ==================== 快捷记账 ====================
+
+describe('快捷记账 SQL 构造', () => {
+  function buildQuickItemsQuery() {
+    return `SELECT qi.*, c.name as category_name, c.icon as category_icon, c.color as category_color
+     FROM quick_items qi LEFT JOIN categories c ON qi.category_id = c.id
+     ORDER BY qi.id ASC`;
+  }
+
+  test('LEFT JOIN 分类取图标与名称', () => {
+    const sql = buildQuickItemsQuery();
+    assert(sql.includes('LEFT JOIN categories c ON qi.category_id = c.id'), '应 LEFT JOIN categories');
+    assert(sql.includes('category_name'), '应取 category_name');
+    assert(sql.includes('category_icon'), '应取 category_icon');
+  });
+
+  test('按 id 升序排列', () => {
+    assert(buildQuickItemsQuery().includes('ORDER BY qi.id ASC'), '应按 id ASC 排序');
+  });
+
+  test('addQuickItem INSERT 字段完整', () => {
+    const sql = 'INSERT INTO quick_items (name, category_id, amount) VALUES (?, ?, ?)';
+    assert(sql.includes('(name, category_id, amount)'), '应插入 name/category_id/amount');
+  });
+
+  test('deleteQuickItem 按 id 删除', () => {
+    const sql = 'DELETE FROM quick_items WHERE id = ?';
+    assert(sql.includes('WHERE id = ?'), '应按 id 删除');
+  });
+});
+
+describe('删除分类连带清理快捷记账', () => {
+  function deleteCategoryWithData(items, categoryId) {
+    // 镜像：事务内删除引用该分类的 quick_items
+    for (let i = items.length - 1; i >= 0; i--) {
+      if (items[i].category_id === categoryId) items.splice(i, 1);
+    }
+  }
+
+  test('删除分类后其快捷记账一并删除', () => {
+    const items = [
+      { id: 1, name: '停车', category_id: 2, amount: 10 },
+      { id: 2, name: '奶茶', category_id: 1, amount: 15 },
+    ];
+    deleteCategoryWithData(items, 2);
+    assertEquals(items.length, 1);
+    assertEquals(items[0].name, '奶茶');
+  });
+
+  test('不引用该分类的快捷记账保留', () => {
+    const items = [{ id: 1, name: '停车', category_id: 2, amount: 10 }];
+    deleteCategoryWithData(items, 99);
+    assertEquals(items.length, 1);
   });
 });

@@ -217,5 +217,5 @@ for (const cat of allCategories) {
 
 console.log(`\n✅ Day 3 验证完成`);
 console.log(`   规则引擎: ${failed === 0 ? '全部通过 ✅' : '有 ' + failed + ' 个失败 ❌'}`);
-console.log(`   AI 服务: 代码就绪，等待连接 Ollama/OpenAI`);
+console.log(`   AI 服务: 代码就绪，接入云端 OpenAI 兼容 API（DeepSeek 等），未配置时仅用规则引擎`);
 console.log(`   设置页: UI 就绪，支持配置 API 地址/Key/模型`);

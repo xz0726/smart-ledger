@@ -7,20 +7,23 @@ export function useStats(month: string) {
   const [overview, setOverview] = useState<StatsOverview | null>(null);
   const [categoryStats, setCategoryStats] = useState<CategoryStats[]>([]);
   const [dailyTrend, setDailyTrend] = useState<DailyTrend[]>([]);
+  const [fixedSummary, setFixedSummary] = useState<{ expenseTotal: number; incomeTotal: number } | null>(null);
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const prevMonth = getPreviousMonth(month);
-      const [ov, cs, dt] = await Promise.all([
+      const [ov, cs, dt, fs] = await Promise.all([
         db.getStatsOverview(month, prevMonth),
         db.getCategoryStats(month),
         db.getDailyTrend(month),
+        db.getFixedSummary(month),
       ]);
       setOverview(ov);
       setCategoryStats(cs);
       setDailyTrend(dt);
+      setFixedSummary(fs);
     } catch (e) {
       console.error('Failed to load stats:', e);
     } finally {
@@ -32,5 +35,5 @@ export function useStats(month: string) {
     load();
   }, [load]);
 
-  return { overview, categoryStats, dailyTrend, loading, reload: load };
+  return { overview, categoryStats, dailyTrend, fixedSummary, loading, reload: load };
 }

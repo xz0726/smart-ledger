@@ -37,6 +37,33 @@ function getPreviousMonth(month) {
   return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
 }
 
+function getNextMonth(month) {
+  const [year, m] = month.split('-').map(Number);
+  const d = new Date(year, m, 1);
+  return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+}
+
+function isCurrentMonth(month) {
+  return month === getCurrentMonth();
+}
+
+function getRecentMonths(endMonth = getCurrentMonth(), count = 12) {
+  const out = [];
+  let m = endMonth;
+  for (let i = 0; i < count; i++) {
+    out.unshift(m);
+    m = getPreviousMonth(m);
+  }
+  return out;
+}
+
+function getTodayDate() {
+  const now = new Date();
+  const m = (now.getMonth() + 1).toString().padStart(2, '0');
+  const d = now.getDate().toString().padStart(2, '0');
+  return `${now.getFullYear()}-${m}-${d}`;
+}
+
 // ==================== 测试 ====================
 
 describe('formatAmount', () => {
@@ -84,4 +111,54 @@ describe('getPreviousMonth', () => {
   test('7月→6月', () => assertEquals(getPreviousMonth('2026-07'), '2026-06'));
   test('1月→去年12月', () => assertEquals(getPreviousMonth('2026-01'), '2025-12'));
   test('3月→2月', () => assertEquals(getPreviousMonth('2026-03'), '2026-02'));
+});
+
+describe('getNextMonth', () => {
+  test('10月→11月', () => assertEquals(getNextMonth('2026-10'), '2026-11'));
+  test('12月→次年1月', () => assertEquals(getNextMonth('2026-12'), '2027-01'));
+  test('1月→2月', () => assertEquals(getNextMonth('2026-01'), '2026-02'));
+});
+
+describe('isCurrentMonth', () => {
+  test('当前月为 true', () => assert(isCurrentMonth(getCurrentMonth()), '当前月应返回 true'));
+  test('非当前月为 false', () => {
+    const prev = getPreviousMonth(getCurrentMonth());
+    assert(!isCurrentMonth(prev), '非当前月应返回 false');
+  });
+});
+
+describe('getRecentMonths', () => {
+  test('返回最近3个月（旧到新）', () => {
+    const result = getRecentMonths('2026-10', 3);
+    assertEquals(result.length, 3);
+    assertEquals(result[0], '2026-08');
+    assertEquals(result[1], '2026-09');
+    assertEquals(result[2], '2026-10');
+  });
+  test('跨年', () => {
+    const result = getRecentMonths('2026-02', 3);
+    assertEquals(result.join(','), '2025-12,2026-01,2026-02');
+  });
+  test('默认12个月且最新为当前月', () => {
+    const result = getRecentMonths();
+    assertEquals(result.length, 12);
+    assertEquals(result[result.length - 1], getCurrentMonth());
+  });
+});
+
+describe('getTodayDate', () => {
+  test('返回 YYYY-MM-DD 格式', () => {
+    assert(/^\d{4}-\d{2}-\d{2}$/.test(getTodayDate()), '应匹配 YYYY-MM-DD');
+  });
+  test('与当前日期逐段一致', () => {
+    const now = new Date();
+    const m = (now.getMonth() + 1).toString().padStart(2, '0');
+    const d = now.getDate().toString().padStart(2, '0');
+    assertEquals(getTodayDate(), `${now.getFullYear()}-${m}-${d}`);
+  });
+  test('月份和日期两位补零', () => {
+    const parts = getTodayDate().split('-');
+    assert(parts[1].length === 2, '月份应两位');
+    assert(parts[2].length === 2, '日期应两位');
+  });
 });

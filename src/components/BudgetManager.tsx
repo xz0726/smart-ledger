@@ -1,10 +1,12 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, TextInput, Alert, StyleSheet } from 'react-native';
 import { Plus, Trash2 } from 'lucide-react-native';
 import { useFocusEffect } from 'expo-router';
+import { useThemeColors, type ThemeColors } from '../theme';
 import type { Category, BudgetWithCategory } from '../types';
 import { getCategories, getBudgets, setBudget, deleteBudget } from '../services/db';
 import { getCurrentMonth } from '../utils/format';
+import { useCategoryStore } from '../stores/categoryStore';
 
 const PERIODS = [
   { key: 'weekly', label: '周' },
@@ -20,6 +22,9 @@ export default function BudgetManager() {
   const [budgetAmount, setBudgetAmount] = useState('');
   const [period, setPeriod] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
   const month = getCurrentMonth();
+  const revision = useCategoryStore(s => s.revision);
+  const c = useThemeColors();
+  const s = useMemo(() => createStyles(c), [c]);
 
   const load = useCallback(async () => {
     try {
@@ -30,7 +35,7 @@ export default function BudgetManager() {
     } catch (e) { console.error(e); }
   }, [month]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => { load(); }, [load, revision]));
 
   async function handleSetBudget() {
     if (selectedCategory === 0) { Alert.alert('请选择分类'); return; }
@@ -65,7 +70,7 @@ export default function BudgetManager() {
             {categories.map(cat => (
               <TouchableOpacity key={cat.id} onPress={() => setSelectedCategory(cat.id)}
                 style={[s.catItem, selectedCategory === cat.id && s.catItemActive]}>
-                <Text style={{ fontSize: 12 }}>{cat.icon} {cat.name}</Text>
+                <Text style={{ fontSize: 12, color: c.text }}>{cat.icon} {cat.name}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -81,7 +86,7 @@ export default function BudgetManager() {
           <View style={s.amountRow}>
             <Text style={s.yuan}>¥</Text>
             <TextInput style={s.amountInput} value={budgetAmount} onChangeText={setBudgetAmount}
-              keyboardType="decimal-pad" placeholder="预算金额" placeholderTextColor="#94a3b8" />
+              keyboardType="decimal-pad" placeholder="预算金额" placeholderTextColor={c.hint} />
           </View>
           <TouchableOpacity onPress={handleSetBudget} style={s.setBtn}>
             <Text style={s.setBtnText}>设置预算</Text>
@@ -100,17 +105,17 @@ export default function BudgetManager() {
             <View style={s.budgetTop}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Text style={{ fontSize: 14, marginRight: 4 }}>{b.category_icon}</Text>
-                <Text style={{ fontSize: 14, color: '#1e293b' }}>{b.category_name}</Text>
-                <Text style={{ fontSize: 12, color: '#64748b', marginLeft: 4 }}>
+                <Text style={{ fontSize: 14, color: c.text }}>{b.category_name}</Text>
+                <Text style={{ fontSize: 12, color: c.textSecondary, marginLeft: 4 }}>
                   · {PERIODS.find(p => p.key === b.period)?.label || '月'}
                 </Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ fontSize: 12, color: isOver ? '#ef4444' : isWarning ? '#f59e0b' : '#64748b', marginRight: 8 }}>
+                <Text style={{ fontSize: 12, color: isOver ? '#ef4444' : isWarning ? '#f59e0b' : c.textSecondary, marginRight: 8 }}>
                   ¥{b.spent.toFixed(0)} / ¥{b.amount.toFixed(0)}
                 </Text>
                 <TouchableOpacity onPress={() => handleDelete(b.category_id)}>
-                  <Trash2 size={14} color="#94a3b8" />
+                  <Trash2 size={14} color={c.hint} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -126,28 +131,28 @@ export default function BudgetManager() {
   );
 }
 
-const s = StyleSheet.create({
-  card: { backgroundColor: '#fff', marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16, elevation: 1 },
+const createStyles = (c: ThemeColors) => StyleSheet.create({
+  card: { backgroundColor: c.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16, elevation: 1 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  title: { fontSize: 14, fontWeight: '600', color: '#1e293b' },
-  addPanel: { backgroundColor: '#f8fafc', borderRadius: 8, padding: 12, marginBottom: 12 },
-  label: { fontSize: 12, color: '#64748b', marginBottom: 4 },
+  title: { fontSize: 14, fontWeight: '600', color: c.text },
+  addPanel: { backgroundColor: c.inputBg, borderRadius: 8, padding: 12, marginBottom: 12 },
+  label: { fontSize: 12, color: c.textSecondary, marginBottom: 4 },
   catRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
-  catItem: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: '#e2e8f0' },
-  catItemActive: { borderColor: '#6366f1', backgroundColor: '#eef2ff' },
+  catItem: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: c.border },
+  catItemActive: { borderColor: '#6366f1', backgroundColor: c.primarySoftBg },
   periodRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  periodItem: { flex: 1, paddingVertical: 6, borderRadius: 8, alignItems: 'center', backgroundColor: '#e2e8f0' },
+  periodItem: { flex: 1, paddingVertical: 6, borderRadius: 8, alignItems: 'center', backgroundColor: c.border },
   periodActive: { backgroundColor: '#6366f1' },
-  periodText: { fontSize: 12, fontWeight: '500', color: '#64748b' },
+  periodText: { fontSize: 12, fontWeight: '500', color: c.textSecondary },
   periodTextActive: { color: '#fff' },
   amountRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  yuan: { fontSize: 14, color: '#1e293b', marginRight: 8 },
-  amountInput: { flex: 1, backgroundColor: '#fff', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, color: '#1e293b', borderWidth: 1, borderColor: '#e2e8f0' },
+  yuan: { fontSize: 14, color: c.text, marginRight: 8 },
+  amountInput: { flex: 1, backgroundColor: c.card, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, color: c.text, borderWidth: 1, borderColor: c.border },
   setBtn: { backgroundColor: '#6366f1', paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
   setBtnText: { color: '#fff', fontSize: 14, fontWeight: '500' },
-  empty: { color: '#64748b', fontSize: 14, textAlign: 'center', paddingVertical: 12 },
+  empty: { color: c.textSecondary, fontSize: 14, textAlign: 'center', paddingVertical: 12 },
   budgetItem: { marginBottom: 12 },
   budgetTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  progressBar: { height: 8, backgroundColor: '#f1f5f9', borderRadius: 4, overflow: 'hidden' },
+  progressBar: { height: 8, backgroundColor: c.subtle, borderRadius: 4, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 4 },
 });

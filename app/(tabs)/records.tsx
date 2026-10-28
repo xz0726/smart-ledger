@@ -6,12 +6,15 @@ import { useFocusEffect } from 'expo-router';
 import ExpenseCard from '../../src/components/ExpenseCard';
 import EditExpenseModal from '../../src/components/EditExpenseModal';
 import InputBar from '../../src/components/InputBar';
+import MonthSwitcher from '../../src/components/MonthSwitcher';
 import { useExpenses } from '../../src/hooks/useExpenses';
+import { useMonthStore } from '../../src/stores/monthStore';
+import { useThemeColors, type ThemeColors } from '../../src/theme';
 import type { ExpenseWithCategory } from '../../src/types';
-import { getCurrentMonth, formatDate } from '../../src/utils/format';
+import { formatDate, formatMonth, isCurrentMonth } from '../../src/utils/format';
 
 export default function Records() {
-  const [month] = useState(getCurrentMonth());
+  const { month, setMonth } = useMonthStore();
   const [search, setSearch] = useState('');
   const { expenses, loading, add, remove, update, load } = useExpenses(month);
   const [editingExpense, setEditingExpense] = useState<ExpenseWithCategory | null>(null);
@@ -32,6 +35,9 @@ export default function Records() {
   // 切换到账单页时自动刷新
   useFocusEffect(useCallback(() => { load({}); }, [load]));
 
+  const c = useThemeColors();
+  const s = useMemo(() => createStyles(c), [c]);
+
   const groupedExpenses = useMemo(() => {
     const groups: { date: string; items: typeof expenses }[] = [];
     for (const e of expenses) {
@@ -49,10 +55,11 @@ export default function Records() {
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
+      <MonthSwitcher month={month} onChange={setMonth} />
       <View style={s.searchBar}>
         <View style={s.searchBox}>
-          <Search size={16} color="#94a3b8" />
-          <TextInput style={s.searchInput} placeholder="搜索账单..." placeholderTextColor="#94a3b8"
+          <Search size={16} color={c.hint} />
+          <TextInput style={s.searchInput} placeholder="搜索账单..." placeholderTextColor={c.hint}
             value={search} onChangeText={setSearch} />
           {search.length > 0 && <TouchableOpacity onPress={() => setSearch('')}><Text style={s.clear}>清除</Text></TouchableOpacity>}
         </View>
@@ -62,18 +69,20 @@ export default function Records() {
         keyExtractor={item => item.date}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={() => load({ search: search.trim() || undefined })} tintColor="#6366f1" />}
         ListEmptyComponent={<View style={s.emptyWrap}><Text style={{ fontSize: 40, marginBottom: 12 }}>📝</Text>
-          <Text style={{ color: '#64748b', fontSize: 14 }}>{search ? '没有匹配的记录' : '还没有记账记录'}</Text></View>}
+          <Text style={{ color: c.textSecondary, fontSize: 14 }}>{search ? '没有匹配的记录' : '还没有记账记录'}</Text></View>}
         renderItem={({ item: group }) => (
           <View>
             <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 }}>
-              <Text style={{ fontSize: 12, color: '#64748b', fontWeight: '500' }}>{formatDate(group.date)}</Text>
+              <Text style={{ fontSize: 12, color: c.textSecondary, fontWeight: '500' }}>
+                {!isCurrentMonth(month) ? `${formatMonth(group.date.slice(0, 7))} · ` : ''}{formatDate(group.date)}
+              </Text>
             </View>
             {group.items.map(expense => (
               <ExpenseCard key={expense.id} expense={expense}
                 onPress={() => handleEdit(expense)}
                 onLongPress={() => handleDelete(expense.id, expense.description || expense.raw_input || expense.category_name)} />
             ))}
-            <View style={{ marginHorizontal: 16, marginVertical: 6, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' }} />
+            <View style={{ marginHorizontal: 16, marginVertical: 6, borderBottomWidth: 1, borderBottomColor: c.subtle }} />
           </View>
         )}
         contentContainerStyle={{ paddingBottom: 100 }}
@@ -85,11 +94,11 @@ export default function Records() {
   );
 }
 
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#f8fafc' },
-  searchBar: { backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
-  searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', borderRadius: 8, paddingHorizontal: 12 },
-  searchInput: { flex: 1, paddingVertical: 8, paddingHorizontal: 8, fontSize: 14, color: '#1e293b' },
+const createStyles = (c: ThemeColors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.background },
+  searchBar: { backgroundColor: c.card, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.subtle },
+  searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.inputBg, borderRadius: 8, paddingHorizontal: 12 },
+  searchInput: { flex: 1, paddingVertical: 8, paddingHorizontal: 8, fontSize: 14, color: c.text },
   clear: { color: '#6366f1', fontSize: 14 },
   emptyWrap: { alignItems: 'center', justifyContent: 'center', paddingVertical: 80 },
 });

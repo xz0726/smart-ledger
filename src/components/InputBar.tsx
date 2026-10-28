@@ -1,20 +1,51 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { View, TextInput, TouchableOpacity, Text, ActivityIndicator, Alert, StyleSheet, Keyboard, Animated, Platform } from 'react-native';
 import { Send } from 'lucide-react-native';
-import type { ParsedExpense } from '../types';
+import { useThemeColors, type ThemeColors } from '../theme';
+import type { AIConfig, ParsedExpense } from '../types';
 import { parseWithRules } from '../services/ruleEngine';
-import { parseWithAI } from '../services/ai';
-import { getCategories } from '../services/db';
+import { loadAIConfig, parseWithAI } from '../services/ai';
+import { getCategories, getCustomRules } from '../services/db';
+import ParsePreviewModal from './ParsePreviewModal';
 
 interface Props {
   onAddExpense: (amount: number, categoryId: number, date: string, description?: string, rawInput?: string) => Promise<void>;
+}
+
+/**
+ * 规则命中但分类为「其他」→ 配置了 AI 则逐条重分类（仅改分类，金额/描述/日期用规则引擎结果）。
+ * 未配置 AI → 直接返回保持「其他」；AI 调用失败 → 保持「其他」并置 failed 标记（轻提示后照常入账）。
+ */
+async function reclassifyOthers(items: ParsedExpense[], fallbackInput: string): Promise<{ items: ParsedExpense[]; failed: boolean; error?: string }> {
+  if (!items.some(i => i.category === '其他')) return { items, failed: false };
+  let cfg: AIConfig;
+  try { cfg = await loadAIConfig(); } catch { return { items, failed: false }; }
+  if (!cfg.apiUrl || !cfg.apiUrl.trim()) return { items, failed: false }; // 未配置 AI → 按「其他」直接入账
+  const out: ParsedExpense[] = [];
+  let failed = false;
+  let error = '';
+  for (const item of items) {
+    if (item.category !== '其他') { out.push(item); continue; }
+    try {
+      const ai = await parseWithAI(item.rawInput || fallbackInput, cfg);
+      out.push(ai.category && ai.category !== '其他' ? { ...item, category: ai.category } : item);
+    } catch (e: any) {
+      failed = true; // AI 配置了但调用失败 → 保持「其他」，轻提示后照常入账
+      error = e?.message || '未知错误';
+      out.push(item);
+    }
+  }
+  return { items: out, failed, error };
 }
 
 export default function InputBar({ onAddExpense }: Props) {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [previewItems, setPreviewItems] = useState<ParsedExpense[] | null>(null);
   const inputRef = useRef<TextInput>(null);
+  const c = useThemeColors();
+  const s = useMemo(() => createStyles(c), [c]);
 
   useEffect(() => {
     const showSub = Keyboard.addListener(
@@ -28,24 +59,50 @@ export default function InputBar({ onAddExpense }: Props) {
     return () => { showSub.remove(); hideSub.remove(); };
   }, []);
 
+  /** 把解析结果逐条写入账本（按分类名找 category_id，找不到降级「其他」/首分类） */
+  const writeItems = async (items: ParsedExpense[], fallbackRawInput: string) => {
+    const categories = await getCategories();
+    for (const item of items) {
+      let category = categories.find(c => c.name === item.category);
+      if (!category) category = categories.find(c => c.name === '其他') || categories[0];
+      await onAddExpense(item.amount, category!.id, item.date, item.description, item.rawInput || fallbackRawInput);
+    }
+  };
+
   const handleSubmit = async () => {
     const trimmed = text.trim();
     if (!trimmed) return;
     setLoading(true);
     try {
-      let parsed: ParsedExpense | null = parseWithRules(trimmed);
-      if (!parsed) {
-        try { parsed = await parseWithAI(trimmed); }
-        catch { Alert.alert('无法识别', '请手动输入金额和分类，例如：\n"午饭花了35元"', [{ text: '好的' }]); setLoading(false); return; }
+      const customRules = await getCustomRules();
+      let parsed = parseWithRules(trimmed, customRules);
+      if (parsed.length === 0) {
+        try { parsed = [await parseWithAI(trimmed)]; }
+        catch (e: any) { Alert.alert('无法识别', `AI 解析失败（${e?.message || '未知错误'}）\n请手动输入金额和分类，例如：\n"午饭花了35元"`, [{ text: '好的' }]); setLoading(false); return; }
+      } else {
+        const { items, failed, error } = await reclassifyOthers(parsed, trimmed);
+        parsed = items;
+        if (failed) Alert.alert('提示', `AI 分类失败，已按「其他」记录${error ? `（${error}）` : ''}`, [{ text: '好的' }]); // 轻提示，不中断记账
       }
-      const categories = await getCategories();
-      let category = categories.find(c => c.name === parsed!.category);
-      if (!category) category = categories.find(c => c.name === '其他') || categories[0];
-      await onAddExpense(parsed!.amount, category!.id, parsed!.date, parsed!.description, trimmed);
       setText('');
       Keyboard.dismiss();
+      // 多项 → 预览确认；单项 → 直接入账（保持原有体验）
+      if (parsed.length > 1) {
+        setPreviewItems(parsed);
+      } else {
+        await writeItems(parsed, trimmed);
+      }
     } catch (e: any) { Alert.alert('记账失败', e.message || '请稍后重试'); }
     finally { setLoading(false); }
+  };
+
+  const handleConfirmPreview = async () => {
+    if (!previewItems) return;
+    const items = previewItems;
+    setPreviewItems(null);
+    try {
+      await writeItems(items, text);
+    } catch (e: any) { Alert.alert('记账失败', e.message || '请稍后重试'); }
   };
 
   return (
@@ -53,23 +110,25 @@ export default function InputBar({ onAddExpense }: Props) {
       <View style={s.bar}>
         <View style={s.inputWrap}>
           <TextInput ref={inputRef} style={s.input} placeholder="输入消费，如：午饭花了35元"
-            placeholderTextColor="#94a3b8" value={text} onChangeText={setText}
+            placeholderTextColor={c.hint} value={text} onChangeText={setText}
             onSubmitEditing={handleSubmit} returnKeyType="send" editable={!loading} />
         </View>
         {loading ? <ActivityIndicator size="small" color="#6366f1" style={{ marginLeft: 12 }} /> :
           <TouchableOpacity onPress={handleSubmit} disabled={!text.trim()}
-            style={[s.sendBtn, { backgroundColor: text.trim() ? '#6366f1' : '#cbd5e1' }]}>
+            style={[s.sendBtn, { backgroundColor: text.trim() ? '#6366f1' : c.disabled }]}>
             <Send size={18} color="white" />
           </TouchableOpacity>}
       </View>
+      <ParsePreviewModal visible={previewItems !== null} items={previewItems || []}
+        onConfirm={handleConfirmPreview} onCancel={() => setPreviewItems(null)} />
     </View>
   );
 }
 
-const s = StyleSheet.create({
-  wrap: { backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f1f5f9' },
+const createStyles = (c: ThemeColors) => StyleSheet.create({
+  wrap: { backgroundColor: c.card, borderTopWidth: 1, borderTopColor: c.subtle },
   bar: { paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center' },
-  inputWrap: { flex: 1, backgroundColor: '#f8fafc', borderRadius: 24, paddingHorizontal: 16, paddingVertical: Platform.OS === 'ios' ? 10 : 8, flexDirection: 'row', alignItems: 'center' },
-  input: { flex: 1, fontSize: 14, color: '#1e293b' },
+  inputWrap: { flex: 1, backgroundColor: c.inputBg, borderRadius: 24, paddingHorizontal: 16, paddingVertical: Platform.OS === 'ios' ? 10 : 8, flexDirection: 'row', alignItems: 'center' },
+  input: { flex: 1, fontSize: 14, color: c.text },
   sendBtn: { marginLeft: 12, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
 });

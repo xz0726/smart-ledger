@@ -1,5 +1,8 @@
 import * as SQLite from 'expo-sqlite';
-import type { Category, Expense, ExpenseWithCategory, Budget, BudgetWithCategory, StatsOverview, CategoryStats, DailyTrend } from '../types';
+import type { Category, Expense, ExpenseWithCategory, Budget, BudgetWithCategory, StatsOverview, CategoryStats, DailyTrend, CustomRule, FixedItem, FixedItemWithCategory, QuickItemWithCategory } from '../types';
+import { isCurrentMonth } from '../utils/format';
+
+const FIXED_PREFIX = '[固定]';
 
 let db: SQLite.SQLiteDatabase | null = null;
 
@@ -52,6 +55,34 @@ async function migrate(db: SQLite.SQLiteDatabase): Promise<void> {
     CREATE TABLE IF NOT EXISTS settings (
       key   TEXT PRIMARY KEY,
       value TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS custom_rules (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      keyword    TEXT NOT NULL UNIQUE,
+      category   TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now','localtime'))
+    );
+
+    CREATE TABLE IF NOT EXISTS fixed_items (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      name         TEXT NOT NULL,
+      type         TEXT NOT NULL DEFAULT 'expense',
+      category_id  INTEGER REFERENCES categories(id),
+      amount       REAL NOT NULL,
+      frequency    TEXT NOT NULL DEFAULT 'monthly',
+      weekday      INTEGER,
+      day_of_month INTEGER,
+      enabled      INTEGER DEFAULT 1,
+      created_at   TEXT DEFAULT (datetime('now','localtime'))
+    );
+
+    CREATE TABLE IF NOT EXISTS quick_items (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      name        TEXT NOT NULL,
+      category_id INTEGER REFERENCES categories(id),
+      amount      REAL NOT NULL,
+      created_at  TEXT DEFAULT (datetime('now','localtime'))
     );
 
     CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(expense_date);
@@ -216,6 +247,253 @@ export async function deleteCategory(id: number): Promise<void> {
   );
 }
 
+/** 统计某分类关联的数据量（账单/预算/固定收支），用于删除分类前的处置决策 */
+export async function getCategoryDataCounts(categoryId: number): Promise<{ expenses: number; budgets: number; fixedItems: number }> {
+  const database = getDb();
+  const cnt = (sql: string) => database.getFirstSync<{ cnt: number }>(sql, [categoryId])?.cnt || 0;
+  return {
+    expenses: cnt('SELECT COUNT(*) as cnt FROM expenses WHERE category_id = ?'),
+    budgets: cnt('SELECT COUNT(*) as cnt FROM budgets WHERE category_id = ?'),
+    fixedItems: cnt('SELECT COUNT(*) as cnt FROM fixed_items WHERE category_id = ?'),
+  };
+}
+
+/**
+ * 删除分类并处置关联数据（事务保证原子性）：
+ * - transferTargetId 非空 → 该分类全部账单改挂目标分类；null → 连带删除账单
+ * - 预算恒删除、固定收支恒停用（enabled=0，保留配置但不再自动生成）
+ */
+export async function deleteCategoryWithData(categoryId: number, transferTargetId: number | null): Promise<void> {
+  const database = getDb();
+  database.withTransactionSync(() => {
+    if (transferTargetId) {
+      database.runSync('UPDATE expenses SET category_id = ? WHERE category_id = ?', [transferTargetId, categoryId]);
+    } else {
+      database.runSync('DELETE FROM expenses WHERE category_id = ?', [categoryId]);
+    }
+    database.runSync('DELETE FROM budgets WHERE category_id = ?', [categoryId]);
+    database.runSync('UPDATE fixed_items SET enabled = 0 WHERE category_id = ?', [categoryId]);
+    database.runSync('DELETE FROM quick_items WHERE category_id = ?', [categoryId]);
+    database.runSync('DELETE FROM categories WHERE id = ? AND is_default = 0', [categoryId]);
+  });
+}
+
+// ===================== 自定义规则 =====================
+
+export async function getCustomRules(): Promise<CustomRule[]> {
+  return getDb().getAllSync<CustomRule>('SELECT * FROM custom_rules ORDER BY id DESC');
+}
+
+export async function addCustomRule(keyword: string, category: string): Promise<void> {
+  getDb().runSync(
+    'INSERT OR REPLACE INTO custom_rules (keyword, category) VALUES (?, ?)',
+    [keyword, category]
+  );
+}
+
+export async function deleteCustomRule(id: number): Promise<void> {
+  getDb().runSync('DELETE FROM custom_rules WHERE id = ?', [id]);
+}
+
+/** 删除某分类名下的全部自定义关键词（分类删除时清理用） */
+export async function deleteCustomRulesByCategory(category: string): Promise<void> {
+  getDb().runSync('DELETE FROM custom_rules WHERE category = ?', [category]);
+}
+
+// ===================== 固定收支 =====================
+
+export async function getFixedItems(opts?: { enabled?: boolean }): Promise<FixedItem[]> {
+  let where = '';
+  const values: any[] = [];
+  if (opts?.enabled !== undefined) {
+    where = ' WHERE enabled = ?';
+    values.push(opts.enabled ? 1 : 0);
+  }
+  return getDb().getAllSync<FixedItem>(`SELECT * FROM fixed_items${where} ORDER BY id ASC`, values);
+}
+
+export async function getFixedItemsWithCategory(opts?: { enabled?: boolean }): Promise<FixedItemWithCategory[]> {
+  let where = '';
+  const values: any[] = [];
+  if (opts?.enabled !== undefined) {
+    where = ' WHERE fi.enabled = ?';
+    values.push(opts.enabled ? 1 : 0);
+  }
+  return getDb().getAllSync<FixedItemWithCategory>(
+    `SELECT fi.*, c.name as category_name, c.icon as category_icon, c.color as category_color
+     FROM fixed_items fi LEFT JOIN categories c ON fi.category_id = c.id
+     ${where}
+     ORDER BY fi.id ASC`,
+    values
+  );
+}
+
+export async function addFixedItem(data: {
+  name: string;
+  type: 'expense' | 'income';
+  category_id: number;
+  amount: number;
+  frequency: FixedItem['frequency'];
+  weekday?: number | null;
+  day_of_month?: number | null;
+}): Promise<number> {
+  const result = getDb().runSync(
+    'INSERT INTO fixed_items (name, type, category_id, amount, frequency, weekday, day_of_month) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [data.name, data.type, data.category_id, data.amount, data.frequency, data.weekday ?? null, data.day_of_month ?? null]
+  );
+  return result.lastInsertRowId;
+}
+
+export async function updateFixedItem(id: number, updates: Partial<{
+  name: string;
+  type: 'expense' | 'income';
+  category_id: number;
+  amount: number;
+  frequency: FixedItem['frequency'];
+  weekday: number | null;
+  day_of_month: number | null;
+  enabled: number;
+}>): Promise<void> {
+  const set: string[] = [];
+  const values: any[] = [];
+  if (updates.name !== undefined) { set.push('name = ?'); values.push(updates.name); }
+  if (updates.type !== undefined) { set.push('type = ?'); values.push(updates.type); }
+  if (updates.category_id !== undefined) { set.push('category_id = ?'); values.push(updates.category_id); }
+  if (updates.amount !== undefined) { set.push('amount = ?'); values.push(updates.amount); }
+  if (updates.frequency !== undefined) { set.push('frequency = ?'); values.push(updates.frequency); }
+  if (updates.weekday !== undefined) { set.push('weekday = ?'); values.push(updates.weekday); }
+  if (updates.day_of_month !== undefined) { set.push('day_of_month = ?'); values.push(updates.day_of_month); }
+  if (updates.enabled !== undefined) { set.push('enabled = ?'); values.push(updates.enabled); }
+  if (set.length === 0) return;
+  values.push(id);
+  getDb().runSync(`UPDATE fixed_items SET ${set.join(', ')} WHERE id = ?`, values);
+}
+
+export async function deleteFixedItem(id: number): Promise<void> {
+  getDb().runSync('DELETE FROM fixed_items WHERE id = ?', [id]);
+}
+
+// ===================== 快捷记账 =====================
+
+export async function getQuickItemsWithCategory(): Promise<QuickItemWithCategory[]> {
+  return getDb().getAllSync<QuickItemWithCategory>(
+    `SELECT qi.*, c.name as category_name, c.icon as category_icon, c.color as category_color
+     FROM quick_items qi LEFT JOIN categories c ON qi.category_id = c.id
+     ORDER BY qi.id ASC`
+  );
+}
+
+export async function addQuickItem(name: string, categoryId: number, amount: number): Promise<number> {
+  const result = getDb().runSync(
+    'INSERT INTO quick_items (name, category_id, amount) VALUES (?, ?, ?)',
+    [name, categoryId, amount]
+  );
+  return result.lastInsertRowId;
+}
+
+export async function deleteQuickItem(id: number): Promise<void> {
+  getDb().runSync('DELETE FROM quick_items WHERE id = ?', [id]);
+}
+
+export async function getExpenseByRawInput(rawInput: string): Promise<Expense | null> {
+  return getDb().getFirstSync<Expense>(
+    'SELECT * FROM expenses WHERE raw_input = ? LIMIT 1',
+    [rawInput]
+  );
+}
+
+export async function getCategoryById(id: number): Promise<Category | null> {
+  return getDb().getFirstSync<Category>(
+    'SELECT * FROM categories WHERE id = ? LIMIT 1',
+    [id]
+  );
+}
+
+/**
+ * 是否在指定日期触发（daily/workday/weekly/monthly）
+ * monthly 的 31 日在不足 31 天的月份跳过（不钳制）
+ */
+export function firesOn(item: FixedItem, date: Date): boolean {
+  switch (item.frequency) {
+    case 'daily':
+      return true;
+    case 'workday': {
+      const day = date.getDay();
+      return day >= 1 && day <= 5; // 周一~周五
+    }
+    case 'weekly':
+      return item.weekday !== null && item.weekday !== undefined && date.getDay() === item.weekday;
+    case 'monthly': {
+      if (item.day_of_month === null || item.day_of_month === undefined) return false;
+      const dim = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+      return date.getDate() === item.day_of_month && item.day_of_month <= dim;
+    }
+    default:
+      return false;
+  }
+}
+
+/**
+ * 补生成固定收支记录（幂等）：
+ * 从创建日/本月 1 号（取较晚）到今天的每个到期日，若尚无「[固定] #id 日期」标记记录则写入。
+ * 未来日期不生成；重复调用是 no-op。
+ */
+export async function syncFixedItems(): Promise<number> {
+  const items = await getFixedItems({ enabled: true });
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+
+  let inserted = 0;
+  for (const item of items) {
+    if (!(await getCategoryById(item.category_id))) continue; // 分类已删除则跳过
+    let from = monthStart;
+    const createdAt = parseCreatedAt(item.created_at);
+    if (createdAt && createdAt > from) from = createdAt;
+
+    for (let d = new Date(from); d <= today; d.setDate(d.getDate() + 1)) {
+      if (!firesOn(item, d)) continue;
+      const dateStr = formatDate(d);
+      const marker = `${FIXED_PREFIX} #${item.id} ${dateStr}`;
+      if (await getExpenseByRawInput(marker)) continue; // 已生成，幂等
+      await addExpense(item.amount, item.category_id, dateStr, item.name, marker);
+      inserted++;
+    }
+  }
+  return inserted;
+}
+
+/** 本月固定收支汇总（统计从标记生成的记录） */
+export async function getFixedSummary(month: string): Promise<{ expenseTotal: number; incomeTotal: number }> {
+  const rows = getDb().getAllSync<{ type: string; total: number }>(
+    `SELECT c.type as type, COALESCE(SUM(e.amount), 0) as total
+     FROM expenses e JOIN categories c ON e.category_id = c.id
+     WHERE e.expense_date LIKE ? AND e.raw_input LIKE ?
+     GROUP BY c.type`,
+    [`${month}%`, `${FIXED_PREFIX}%`]
+  );
+  let expenseTotal = 0;
+  let incomeTotal = 0;
+  for (const r of rows) {
+    if (r.type === 'income') incomeTotal += r.total;
+    else expenseTotal += r.total;
+  }
+  return { expenseTotal, incomeTotal };
+}
+
+function parseCreatedAt(s: string): Date | null {
+  const m = s.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  return new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
+}
+
+function formatDate(date: Date): string {
+  const y = date.getFullYear();
+  const m = (date.getMonth() + 1).toString().padStart(2, '0');
+  const d = date.getDate().toString().padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 // ===================== 预算管理 =====================
 
 export async function getBudgets(month: string): Promise<BudgetWithCategory[]> {
@@ -290,13 +568,16 @@ export async function getStatsOverview(month: string, prevMonth: string): Promis
   const cnt = current?.cnt || 0;
   const prevTotal = previous?.total || 0;
   const daysInMonth = new Date(parseInt(month.split('-')[0]), parseInt(month.split('-')[1]), 0).getDate();
+  // 当前月按已过天数算日均（月中看数字不会偏小）；历史月按整月天数
+  const elapsed = isCurrentMonth(month) ? Math.max(new Date().getDate(), 1) : daysInMonth;
 
   return {
     totalExpense: total,
     totalIncome: currentIncome?.total || 0,
-    dailyAverage: cnt > 0 ? total / daysInMonth : 0,
+    dailyAverage: cnt > 0 ? total / elapsed : 0,
     monthOverMonth: prevTotal > 0 ? ((total - prevTotal) / prevTotal) * 100 : 0,
     recordCount: cnt,
+    hasPrevData: prevTotal > 0,
   };
 }
 
@@ -361,6 +642,8 @@ export interface BackupData {
   expenses: Expense[];
   budgets: Budget[];
   settings: { key: string; value: string }[];
+  customRules: CustomRule[];
+  fixedItems: FixedItem[];
 }
 
 export async function exportAllData(): Promise<BackupData> {
@@ -370,14 +653,18 @@ export async function exportAllData(): Promise<BackupData> {
   const expenses = database.getAllSync<Expense>('SELECT * FROM expenses ORDER BY expense_date DESC');
   const budgets = database.getAllSync<Budget>('SELECT * FROM budgets');
   const settings = database.getAllSync<{ key: string; value: string }>('SELECT * FROM settings');
+  const customRules = database.getAllSync<CustomRule>('SELECT * FROM custom_rules');
+  const fixedItems = database.getAllSync<FixedItem>('SELECT * FROM fixed_items');
 
   return {
-    version: '1.0.0',
+    version: '1.1.0',
     exportedAt: new Date().toISOString(),
     categories,
     expenses,
     budgets,
     settings,
+    customRules,
+    fixedItems,
   };
 }
 
@@ -425,6 +712,22 @@ export async function importAllData(data: BackupData): Promise<{ imported: numbe
     database.runSync(
       'INSERT OR REPLACE INTO budgets (category_id, amount, period, month) VALUES (?, ?, ?, ?)',
       [b.category_id, b.amount, b.period, b.month]
+    );
+  }
+
+  // 导入自定义规则（保留 id）
+  for (const rule of data.customRules || []) {
+    database.runSync(
+      'INSERT OR REPLACE INTO custom_rules (id, keyword, category, created_at) VALUES (?, ?, ?, ?)',
+      [rule.id, rule.keyword, rule.category, rule.created_at || new Date().toISOString()]
+    );
+  }
+
+  // 导入固定收支（保留 id —— 生成的记录依赖「[固定] #id 日期」标记中的 id）
+  for (const item of data.fixedItems || []) {
+    database.runSync(
+      'INSERT OR REPLACE INTO fixed_items (id, name, type, category_id, amount, frequency, weekday, day_of_month, enabled, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [item.id, item.name, item.type, item.category_id, item.amount, item.frequency, item.weekday, item.day_of_month, item.enabled, item.created_at || new Date().toISOString()]
     );
   }
 

@@ -1,19 +1,30 @@
-import { useState, useEffect } from 'react';
-import { ScrollView, View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
+import { useMemo, useState, useEffect } from 'react';
+import { ScrollView, View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Keyboard, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Save, Wifi, Download, Upload, Database } from 'lucide-react-native';
+import { Save, Wifi, Download, Upload, Database, MessageCircle, MessageSquareText, Coffee } from 'lucide-react-native';
+import { router } from 'expo-router';
 import { useSettingsStore } from '../../src/stores/settingsStore';
+import { useThemeColors, type ThemeColors, type ThemePreference } from '../../src/theme';
 import { testConnection } from '../../src/services/ai';
 import CategoryManager from '../../src/components/CategoryManager';
 import BudgetManager from '../../src/components/BudgetManager';
+import FixedItemsManager from '../../src/components/FixedItemsManager';
+import QuickItemsManager from '../../src/components/QuickItemsManager';
+import RuleManager from '../../src/components/RuleManager';
 import { Paths, File } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { getExpenses, getCategories, addExpense, exportAllData, importAllData } from '../../src/services/db';
 import { getCurrentMonth } from '../../src/utils/format';
 
+const THEME_OPTIONS: { key: ThemePreference; label: string }[] = [
+  { key: 'system', label: '跟随系统' },
+  { key: 'light', label: '浅色' },
+  { key: 'dark', label: '深色' },
+];
+
 export default function Settings() {
-  const { aiConfig, loaded, saveAIConfig } = useSettingsStore();
+  const { aiConfig, loaded, saveAIConfig, theme, setThemePreference } = useSettingsStore();
   const [apiUrl, setApiUrl] = useState(aiConfig.apiUrl);
   const [apiKey, setApiKey] = useState(aiConfig.apiKey);
   const [model, setModel] = useState(aiConfig.model);
@@ -24,7 +35,11 @@ export default function Settings() {
     if (loaded) { setApiUrl(aiConfig.apiUrl); setApiKey(aiConfig.apiKey); setModel(aiConfig.model); }
   }, [loaded]);
 
+  const c = useThemeColors();
+  const st = useMemo(() => createStyles(c), [c]);
+
   const handleTestConnection = async () => {
+    if (!apiUrl.trim()) { Alert.alert('提示', '请先填写 API 地址'); return; }
     setTesting(true);
     try {
       const ok = await testConnection({ apiUrl, apiKey, model });
@@ -34,6 +49,7 @@ export default function Settings() {
   };
 
   const handleSave = async () => {
+    Keyboard.dismiss();
     setSaving(true);
     try { await saveAIConfig({ apiUrl, apiKey, model }); Alert.alert('保存成功', 'AI 配置已保存'); }
     catch (e: any) { Alert.alert('保存失败', e.message); }
@@ -90,7 +106,7 @@ export default function Settings() {
       if (result.canceled) return;
       const file = new File(result.assets[0].uri);
       const data = JSON.parse(await file.text());
-      if (!data.version || !data.expenses) { Alert.alert('格式错误', '不是有效的 SmartLedger 备份文件'); return; }
+      if (!data.version || !data.expenses) { Alert.alert('格式错误', '不是有效的智记账备份文件'); return; }
       Alert.alert('恢复确认', `将导入 ${data.expenses.length} 条记录、${data.categories.length} 个分类、${data.budgets.length} 条预算`, [
         { text: '取消', style: 'cancel' },
         { text: '恢复', onPress: async () => {
@@ -104,16 +120,30 @@ export default function Settings() {
   return (
     <SafeAreaView style={st.safe} edges={['top']}>
       <KeyboardAvoidingView style={st.flex1} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView style={st.flex1}>
+        <ScrollView style={st.flex1} keyboardShouldPersistTaps="handled">
+          {/* 主题：跟随系统 / 浅色 / 深色 */}
+          <View style={st.card}>
+            <Text style={st.cardTitle}>🎨 主题</Text>
+            <View style={st.seg}>
+              {THEME_OPTIONS.map(o => (
+                <TouchableOpacity key={o.key} onPress={() => setThemePreference(o.key)}
+                  style={[st.segItem, theme === o.key && st.segItemActive]}>
+                  <Text style={[st.segText, theme === o.key && st.segTextActive]}>{o.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
           {/* AI 配置 */}
           <View style={st.card}>
             <Text style={st.cardTitle}>🤖 AI 配置</Text>
+            <Text style={{ fontSize: 12, color: c.textSecondary, marginBottom: 12 }}>支持任意 OpenAI 兼容 API（DeepSeek / OpenAI / 通义千问）。留空则不启用 AI 解析，仅使用本地规则引擎。</Text>
             <Text style={st.label}>API 地址</Text>
-            <TextInput style={st.input} value={apiUrl} onChangeText={setApiUrl} placeholder="http://localhost:11434/v1" placeholderTextColor="#94a3b8" autoCapitalize="none" autoCorrect={false} />
+            <TextInput style={st.input} value={apiUrl} onChangeText={setApiUrl} placeholder="https://api.deepseek.com/v1" placeholderTextColor={c.hint} autoCapitalize="none" autoCorrect={false} />
             <Text style={st.label}>API Key（可选）</Text>
-            <TextInput style={st.input} value={apiKey} onChangeText={setApiKey} placeholder="ollama" placeholderTextColor="#94a3b8" secureTextEntry autoCapitalize="none" autoCorrect={false} />
+            <TextInput style={st.input} value={apiKey} onChangeText={setApiKey} placeholder="sk-..." placeholderTextColor={c.hint} secureTextEntry autoCapitalize="none" autoCorrect={false} />
             <Text style={st.label}>模型</Text>
-            <TextInput style={st.input} value={model} onChangeText={setModel} placeholder="qwen2.5:7b" placeholderTextColor="#94a3b8" autoCapitalize="none" autoCorrect={false} />
+            <TextInput style={st.input} value={model} onChangeText={setModel} placeholder="deepseek-chat" placeholderTextColor={c.hint} autoCapitalize="none" autoCorrect={false} />
             <View style={st.btnRow}>
               <TouchableOpacity style={st.btnOutline} onPress={handleTestConnection} disabled={testing}>
                 {testing ? <ActivityIndicator size="small" color="#6366f1" /> : <><Wifi size={16} color="#6366f1" /><Text style={st.btnOutlineText}>测试连接</Text></>}
@@ -127,8 +157,17 @@ export default function Settings() {
           {/* 预算管理 */}
           <BudgetManager />
 
+          {/* 固定收支 */}
+          <FixedItemsManager />
+
+          {/* 快捷记账 */}
+          <QuickItemsManager />
+
           {/* 分类管理 */}
           <CategoryManager />
+
+          {/* 自定义规则 */}
+          <RuleManager />
 
           {/* 数据管理 */}
           <View style={st.card}>
@@ -151,9 +190,25 @@ export default function Settings() {
           {/* 关于 */}
           <View style={st.card}>
             <Text style={st.cardTitle}>📱 关于</Text>
-            <Text style={{ fontSize: 14, color: '#1e293b' }}>SmartLedger 智记账</Text>
-            <Text style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>版本 1.0.1</Text>
-            <Text style={{ fontSize: 12, color: '#64748b', marginTop: 8 }}>智能记账，轻松管理每一笔消费。支持自然语言输入、AI 自动分类、消费分析与可视化。</Text>
+            <Text style={{ fontSize: 14, color: c.text }}>智记账</Text>
+            <Text style={{ fontSize: 12, color: c.textSecondary, marginTop: 4 }}>版本 1.5.3</Text>
+            <Text style={{ fontSize: 12, color: c.textSecondary, marginTop: 8 }}>智能记账，轻松管理每一笔消费。
+{'\n'}· 自然语言记账：「午饭花了35元」自动入账
+{'\n'}· 规则引擎 + AI 分类，中文金额（两万/三块五）也认识
+{'\n'}· 一次输入多项，逐条核对再入账
+{'\n'}· 固定收支自动补账、快捷记账一键入账
+{'\n'}· 自定义分类 / 关键词规则自由管理
+{'\n'}· 趋势图 · 分类占比 · 预算预警 · 深色模式 · 备份恢复</Text>
+            <View style={st.divider} />
+            <TouchableOpacity style={st.menuItem} onPress={() => router.push('/support/contact')}>
+              <MessageCircle size={18} color="#6366f1" /><Text style={st.menuText}>骚扰作者</Text><Text style={st.menuHint}>QQ 交流群</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={st.menuItem} onPress={() => router.push('/support/feedback')}>
+              <MessageSquareText size={18} color="#3b82f6" /><Text style={st.menuText}>意见反馈</Text><Text style={st.menuHint}>邮件反馈</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={st.menuItem} onPress={() => router.push('/support/donate')}>
+              <Coffee size={18} color="#ec4899" /><Text style={st.menuText}>投喂作者</Text><Text style={st.menuHint}>支持一下</Text>
+            </TouchableOpacity>
           </View>
           <View style={{ height: 32 }} />
         </ScrollView>
@@ -162,20 +217,25 @@ export default function Settings() {
   );
 }
 
-const st = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#f8fafc' },
+const createStyles = (c: ThemeColors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.background },
   flex1: { flex: 1 },
-  card: { backgroundColor: '#fff', marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16, elevation: 1 },
-  cardTitle: { fontSize: 14, fontWeight: '600', color: '#1e293b', marginBottom: 16 },
-  label: { fontSize: 12, color: '#64748b', marginBottom: 4 },
-  input: { backgroundColor: '#f8fafc', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: '#1e293b', borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 12 },
+  card: { backgroundColor: c.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16, elevation: 1 },
+  cardTitle: { fontSize: 14, fontWeight: '600', color: c.text, marginBottom: 16 },
+  seg: { flexDirection: 'row', backgroundColor: c.subtle, borderRadius: 8, padding: 2 },
+  segItem: { flex: 1, paddingVertical: 6, borderRadius: 6, alignItems: 'center' },
+  segItemActive: { backgroundColor: c.card },
+  segText: { fontSize: 13, color: c.textSecondary },
+  segTextActive: { color: '#6366f1', fontWeight: '600' },
+  label: { fontSize: 12, color: c.textSecondary, marginBottom: 4 },
+  input: { backgroundColor: c.inputBg, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: c.text, borderWidth: 1, borderColor: c.border, marginBottom: 12 },
   btnRow: { flexDirection: 'row', gap: 8 },
   btnOutline: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: '#6366f1' },
   btnOutlineText: { color: '#6366f1', fontSize: 14, fontWeight: '500', marginLeft: 6 },
   btnPrimary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 8, backgroundColor: '#6366f1' },
   btnPrimaryText: { color: '#fff', fontSize: 14, fontWeight: '500', marginLeft: 6 },
-  menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
-  menuText: { fontSize: 14, color: '#1e293b', marginLeft: 12, flex: 1 },
-  menuHint: { fontSize: 12, color: '#64748b' },
-  divider: { borderBottomWidth: 1, borderBottomColor: '#f1f5f9', marginVertical: 4 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.subtle },
+  menuText: { fontSize: 14, color: c.text, marginLeft: 12, flex: 1 },
+  menuHint: { fontSize: 12, color: c.textSecondary },
+  divider: { borderBottomWidth: 1, borderBottomColor: c.subtle, marginVertical: 4 },
 });

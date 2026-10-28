@@ -9,13 +9,14 @@ import { describe, test, assert, assertEquals } from './run.mjs';
 // 模拟 settingsStore 的核心逻辑
 function createMockStore(initialConfig = {}) {
   const defaultConfig = {
-    apiUrl: 'http://localhost:11434/v1',
-    apiKey: 'ollama',
-    model: 'qwen2.5:7b',
+    apiUrl: '',
+    apiKey: '',
+    model: '',
   };
 
   let state = {
     aiConfig: { ...defaultConfig, ...initialConfig },
+    theme: 'system',
     loaded: false,
   };
 
@@ -40,23 +41,29 @@ function createMockStore(initialConfig = {}) {
       const apiUrl = dbValues.ai_api_url || defaultConfig.apiUrl;
       const apiKey = dbValues.ai_api_key || defaultConfig.apiKey;
       const model = dbValues.ai_model || defaultConfig.model;
+      const theme = dbValues.theme;
       store.setState({
         aiConfig: { apiUrl, apiKey, model },
+        theme: theme === 'light' || theme === 'dark' ? theme : 'system',
         loaded: true,
       });
     },
 
     // 模拟保存设置到数据库
     saveAIConfig: async (config) => {
-      // 验证
-      if (!config.apiUrl) throw new Error('API 地址不能为空');
-      if (!config.model) throw new Error('模型名称不能为空');
+      // 与真实 store 一致：空配置合法（apiUrl 为空 = AI 未启用）
       store.setState({ aiConfig: { ...config } });
+    },
+
+    // 模拟设置主题偏好（真实 store 同步写入 settings 表）
+    setThemePreference: async (preference) => {
+      store.setState({ theme: preference });
     },
 
     reset: () => {
       store.setState({
         aiConfig: { ...defaultConfig },
+        theme: 'system',
         loaded: false,
       });
     },
@@ -71,9 +78,9 @@ describe('Store 初始化', () => {
   test('默认值', () => {
     const store = createMockStore();
     const { aiConfig, loaded } = store.getState();
-    assertEquals(aiConfig.apiUrl, 'http://localhost:11434/v1');
-    assertEquals(aiConfig.apiKey, 'ollama');
-    assertEquals(aiConfig.model, 'qwen2.5:7b');
+    assertEquals(aiConfig.apiUrl, '');
+    assertEquals(aiConfig.apiKey, '');
+    assertEquals(aiConfig.model, '');
     assert(!loaded, '初始状态 loaded 应为 false');
   });
 
@@ -81,7 +88,7 @@ describe('Store 初始化', () => {
     const store = createMockStore({ apiUrl: 'https://api.openai.com/v1' });
     const { aiConfig } = store.getState();
     assertEquals(aiConfig.apiUrl, 'https://api.openai.com/v1');
-    assertEquals(aiConfig.model, 'qwen2.5:7b'); // 未覆盖的保持默认
+    assertEquals(aiConfig.model, ''); // 未覆盖的保持默认
   });
 });
 
@@ -105,15 +112,15 @@ describe('loadSettings — 从数据库加载', () => {
     await store.loadSettings({ ai_api_url: 'https://custom.api.com/v1' });
     const { aiConfig } = store.getState();
     assertEquals(aiConfig.apiUrl, 'https://custom.api.com/v1');
-    assertEquals(aiConfig.apiKey, 'ollama'); // 默认值
-    assertEquals(aiConfig.model, 'qwen2.5:7b'); // 默认值
+    assertEquals(aiConfig.apiKey, ''); // 默认值
+    assertEquals(aiConfig.model, ''); // 默认值
   });
 
   test('空数据库返回默认值', async () => {
     const store = createMockStore();
     await store.loadSettings({});
     const { aiConfig, loaded } = store.getState();
-    assertEquals(aiConfig.apiUrl, 'http://localhost:11434/v1');
+    assertEquals(aiConfig.apiUrl, '');
     assert(loaded);
   });
 });
@@ -131,24 +138,13 @@ describe('saveAIConfig — 保存配置', () => {
     assertEquals(aiConfig.model, 'gpt-4o');
   });
 
-  test('API 地址为空应报错', async () => {
+  test('空配置可正常保存（表示 AI 未启用）', async () => {
     const store = createMockStore();
-    try {
-      await store.saveAIConfig({ apiUrl: '', apiKey: '', model: 'gpt-4o' });
-      assert(false, '应该抛出错误');
-    } catch (e) {
-      assert(e.message.includes('API 地址不能为空'));
-    }
-  });
-
-  test('模型名称为空应报错', async () => {
-    const store = createMockStore();
-    try {
-      await store.saveAIConfig({ apiUrl: 'http://localhost', apiKey: '', model: '' });
-      assert(false, '应该抛出错误');
-    } catch (e) {
-      assert(e.message.includes('模型名称不能为空'));
-    }
+    await store.saveAIConfig({ apiUrl: '', apiKey: '', model: '' });
+    const { aiConfig } = store.getState();
+    assertEquals(aiConfig.apiUrl, '');
+    assertEquals(aiConfig.apiKey, '');
+    assertEquals(aiConfig.model, '');
   });
 
   test('保存后状态更新', async () => {
@@ -205,8 +201,8 @@ describe('Reset 重置', () => {
     await store.saveAIConfig({ apiUrl: 'https://custom.com', apiKey: 'custom', model: 'custom' });
     store.reset();
     const { aiConfig, loaded } = store.getState();
-    assertEquals(aiConfig.apiUrl, 'http://localhost:11434/v1');
-    assertEquals(aiConfig.apiKey, 'ollama');
+    assertEquals(aiConfig.apiUrl, '');
+    assertEquals(aiConfig.apiKey, '');
     assert(!loaded);
   });
 });
@@ -241,5 +237,59 @@ describe('并发安全', () => {
     const { aiConfig } = store.getState();
     assert(aiConfig.apiUrl.startsWith('https://'), 'apiUrl 应被设置');
     assertEquals(aiConfig.apiKey.length > 0, true);
+  });
+});
+
+describe('主题偏好 — 默认值', () => {
+  test('默认跟随系统', () => {
+    const store = createMockStore();
+    assertEquals(store.getState().theme, 'system');
+  });
+});
+
+describe('loadSettings — 主题加载', () => {
+  test('载入 dark', async () => {
+    const store = createMockStore();
+    await store.loadSettings({ theme: 'dark' });
+    assertEquals(store.getState().theme, 'dark');
+  });
+
+  test('载入 light', async () => {
+    const store = createMockStore();
+    await store.loadSettings({ theme: 'light' });
+    assertEquals(store.getState().theme, 'light');
+  });
+
+  test('非法值 / 缺失兜底为 system', async () => {
+    const store = createMockStore();
+    await store.loadSettings({ theme: 'auto' });
+    assertEquals(store.getState().theme, 'system');
+    await store.loadSettings({});
+    assertEquals(store.getState().theme, 'system');
+  });
+});
+
+describe('setThemePreference — 切换主题', () => {
+  test('更新并通知订阅者', async () => {
+    const store = createMockStore();
+    let notified = null;
+    store.subscribe(s => { notified = s.theme; });
+
+    await store.setThemePreference('dark');
+    assertEquals(store.getState().theme, 'dark');
+    assertEquals(notified, 'dark');
+
+    await store.setThemePreference('light');
+    assertEquals(store.getState().theme, 'light');
+    assertEquals(notified, 'light');
+  });
+
+  test('切换主题不影响 AI 配置', async () => {
+    const store = createMockStore();
+    await store.loadSettings({ ai_api_url: 'https://a.com', theme: 'dark' });
+    await store.setThemePreference('light');
+    const { theme, aiConfig } = store.getState();
+    assertEquals(theme, 'light');
+    assertEquals(aiConfig.apiUrl, 'https://a.com');
   });
 });

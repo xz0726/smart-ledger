@@ -1,11 +1,12 @@
 {
   "expo": {
-    "name": "SmartLedger",
+    "name": "智记账",
     "slug": "smart-ledger",
-    "version": "1.0.1",
+    "description": "智能记账 App：自然语言输入、AI 智能分类、固定收支自动记账、快捷记账、消费分析与深色模式",
+    "version": "1.5.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "scheme": "smartledger",
     "splash": {
       "image": "./assets/splash.png",
@@ -22,14 +23,15 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#6366f1"
+        "backgroundColor": "#0E7C66"
       },
       "package": "com.smartledger.app"
     },
     "plugins": [
       "expo-router",
       "expo-sqlite",
-      "expo-document-picker"
+      "expo-document-picker",
+      "expo-system-ui"
     ],
     "extra": {
       "router": {},
