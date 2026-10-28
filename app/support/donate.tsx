@@ -2,31 +2,15 @@ import { useMemo, useState } from 'react';
 import {
   ScrollView, View, Text, TouchableOpacity, Modal, Pressable, Image, Alert, StyleSheet,
 } from 'react-native';
-import { Asset } from 'expo-asset';
-import { Paths, File } from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
-import * as Haptics from 'expo-haptics';
 import { useThemeColors, type ThemeColors } from '../../src/theme';
 import { QR_IMAGES, type QrKey } from '../../src/constants/support';
+import { shareAssetFile } from '../../src/services/nativeActions';
 
 // 把打包内置的收款码图落到本地缓存文件，再调起系统分享（分享面板可保存到相册/文件）
 const saveOrShareQr = async (key: QrKey) => {
+  const item = QR_IMAGES[key];
   try {
-    const item = QR_IMAGES[key];
-    const asset = Asset.fromModule(item.module);
-    await asset.downloadAsync(); // 开发(从 Metro 拉取)与生产(从内置资源拷贝)都落到本地，得到 file:// localUri
-    if (!asset.localUri) throw new Error('无法获取图片文件');
-
-    const dest = new File(Paths.cache, item.file);
-    const src = new File(asset.localUri);
-    if (src.uri !== dest.uri) await src.copy(dest, { overwrite: true });
-
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(dest.uri, { mimeType: 'image/png', dialogTitle: `保存/分享${item.label}` });
-    } else {
-      Alert.alert('分享不可用', '当前设备不支持系统分享');
-    }
+    await shareAssetFile(item.module, item.file, `保存/分享${item.label}`);
   } catch (e: any) {
     Alert.alert('操作失败', e?.message ?? '请稍后重试');
   }

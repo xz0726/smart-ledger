@@ -11,10 +11,8 @@ import BudgetManager from '../../src/components/BudgetManager';
 import FixedItemsManager from '../../src/components/FixedItemsManager';
 import QuickItemsManager from '../../src/components/QuickItemsManager';
 import RuleManager from '../../src/components/RuleManager';
-import { Paths, File } from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
-import * as DocumentPicker from 'expo-document-picker';
 import { getExpenses, getCategories, addExpense, exportAllData, importAllData } from '../../src/services/db';
+import { shareTextFile, readPickedFile } from '../../src/services/nativeActions';
 import { getCurrentMonth } from '../../src/utils/format';
 
 const THEME_OPTIONS: { key: ThemePreference; label: string }[] = [
@@ -62,18 +60,14 @@ export default function Settings() {
       if (expenses.length === 0) { Alert.alert('无数据', '没有可导出的记录'); return; }
       let csv = '日期,分类,金额,描述,原始输入\n';
       for (const e of expenses) csv += `${e.expense_date},${e.category_name},${e.amount},${e.description || ''},${e.raw_input || ''}\n`;
-      const file = new File(Paths.document, `smartledger_export_${getCurrentMonth()}.csv`);
-      file.write(csv);
-      await Sharing.shareAsync(file.uri, { mimeType: 'text/csv' });
+      await shareTextFile(`smartledger_export_${getCurrentMonth()}.csv`, csv, 'text/csv');
     } catch (e: any) { Alert.alert('导出失败', e.message); }
   };
 
   const handleImportCSV = async () => {
     try {
-      const result = await DocumentPicker.getDocumentAsync({ type: 'text/csv', copyToCacheDirectory: true });
-      if (result.canceled) return;
-      const file = new File(result.assets[0].uri);
-      const content = await file.text();
+      const content = await readPickedFile('text/csv');
+      if (content === null) return;
       const lines = content.split('\n').filter(l => l.trim());
       if (lines.length < 2) { Alert.alert('格式错误', 'CSV 文件中没有数据行'); return; }
       let imported = 0;
@@ -94,18 +88,15 @@ export default function Settings() {
   const handleBackupJSON = async () => {
     try {
       const data = await exportAllData();
-      const file = new File(Paths.document, `smartledger_backup_${getCurrentMonth()}.json`);
-      file.write(JSON.stringify(data, null, 2));
-      await Sharing.shareAsync(file.uri, { mimeType: 'application/json' });
+      await shareTextFile(`smartledger_backup_${getCurrentMonth()}.json`, JSON.stringify(data, null, 2), 'application/json');
     } catch (e: any) { Alert.alert('备份失败', e.message); }
   };
 
   const handleRestoreJSON = async () => {
     try {
-      const result = await DocumentPicker.getDocumentAsync({ type: 'application/json', copyToCacheDirectory: true });
-      if (result.canceled) return;
-      const file = new File(result.assets[0].uri);
-      const data = JSON.parse(await file.text());
+      const content = await readPickedFile('application/json');
+      if (content === null) return;
+      const data = JSON.parse(content);
       if (!data.version || !data.expenses) { Alert.alert('格式错误', '不是有效的智记账备份文件'); return; }
       Alert.alert('恢复确认', `将导入 ${data.expenses.length} 条记录、${data.categories.length} 个分类、${data.budgets.length} 条预算`, [
         { text: '取消', style: 'cancel' },

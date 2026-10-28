@@ -3,12 +3,12 @@ import {
   ScrollView, View, Text, TextInput, TouchableOpacity, Alert,
   KeyboardAvoidingView, Platform, StyleSheet,
 } from 'react-native';
-import * as MailComposer from 'expo-mail-composer';
 import * as Clipboard from 'expo-clipboard';
 import Constants from 'expo-constants';
 import { Send } from 'lucide-react-native';
 import { useThemeColors, type ThemeColors } from '../../src/theme';
 import { SUPPORT } from '../../src/constants/support';
+import { composeMail } from '../../src/services/nativeActions';
 
 const FEEDBACK_TYPES = ['功能建议', '问题反馈', '数据问题', '其他','找作者聊天'] as const;
 const MAX_CONTENT_LENGTH = 500;
@@ -38,11 +38,10 @@ export default function Feedback() {
         body,
       ].join('\n');
 
-      await MailComposer.composeAsync({
+      await composeMail({
         recipients: [SUPPORT.feedbackEmail],
         subject,
         body: mailBody,
-        isHtml: false,
       });
       // 返回值 {status: 'sent' | 'saved' | 'cancelled'}，无需额外处理
     } catch {
