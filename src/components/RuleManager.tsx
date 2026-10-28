@@ -7,6 +7,7 @@ import { cardShadow, useThemeColors, type ThemeColors } from '../theme';
 import type { Category, CustomRule } from '../types';
 import { getCategories, getCustomRules, deleteCustomRule } from '../services/db';
 import { useCategoryStore } from '../stores/categoryStore';
+import { spacing, radius, fontSize } from '../theme/spacing';
 
 /**
  * 自定义规则展示：仅保留展示与删除，按分类分组。
@@ -76,7 +77,7 @@ export default function RuleManager() {
             <View key={rule.id} style={s.ruleItem}>
               <Text style={s.keyword}>{rule.keyword}</Text>
               <TouchableOpacity onPress={() => handleDelete(rule)} style={s.deleteBtn}>
-                <Trash2 size={14} color="#ef4444" />
+                <Trash2 size={14} color={c.danger} />
               </TouchableOpacity>
             </View>
           ))}
@@ -87,14 +88,14 @@ export default function RuleManager() {
 }
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
-  card: { backgroundColor: c.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16, ...cardShadow },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  title: { fontSize: 14, fontWeight: '600', color: c.text },
-  hint: { fontSize: 12, color: c.textSecondary, marginBottom: 12 },
-  empty: { color: c.textSecondary, fontSize: 14, textAlign: 'center', paddingVertical: 12 },
-  groupHeader: { marginTop: 4, marginBottom: 2 },
-  groupTitle: { fontSize: 13, fontWeight: '600', color: '#6366f1' },
+  card: { backgroundColor: c.card, marginHorizontal: spacing.lg, marginTop: spacing.lg, borderRadius: radius.md, padding: spacing.lg, ...cardShadow },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs },
+  title: { fontSize: fontSize.base, fontWeight: '600', color: c.text },
+  hint: { fontSize: fontSize.sm, color: c.textSecondary, marginBottom: spacing.md },
+  empty: { color: c.textSecondary, fontSize: fontSize.base, textAlign: 'center', paddingVertical: spacing.md },
+  groupHeader: { marginTop: spacing.xs, marginBottom: 2 },
+  groupTitle: { fontSize: fontSize.md, fontWeight: '600', color: c.primary },
   ruleItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.subtle },
-  keyword: { flex: 1, fontSize: 14, fontWeight: '500', color: c.text },
-  deleteBtn: { padding: 4 },
+  keyword: { flex: 1, fontSize: fontSize.base, fontWeight: '500', color: c.text },
+  deleteBtn: { padding: spacing.xs },
 });

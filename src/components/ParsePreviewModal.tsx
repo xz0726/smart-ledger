@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { useThemeColors, type ThemeColors } from '../theme';
 import type { ParsedExpense } from '../types';
+import { spacing, radius, fontSize } from '../theme/spacing';
 
 interface Props {
   visible: boolean;
@@ -52,18 +53,18 @@ export default function ParsePreviewModal({ visible, items, onConfirm, onCancel 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
   backdrop: { flex: 1 },
-  panel: { backgroundColor: c.card, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, paddingBottom: 24 },
-  title: { fontSize: 16, fontWeight: '600', color: c.text, marginBottom: 12, textAlign: 'center' },
+  panel: { backgroundColor: c.card, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: spacing.lg, paddingBottom: spacing.xl },
+  title: { fontSize: fontSize.lg, fontWeight: '600', color: c.text, marginBottom: spacing.md, textAlign: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.subtle },
-  amount: { fontSize: 16, fontWeight: '600', color: '#6366f1', width: 80 },
+  amount: { fontSize: fontSize.lg, fontWeight: '600', color: c.primary, width: 80 },
   rowInfo: { flex: 1 },
-  category: { fontSize: 14, fontWeight: '500', color: c.text },
-  description: { fontSize: 12, color: c.textSecondary, marginTop: 2 },
-  date: { fontSize: 11, color: c.hint, marginTop: 2 },
-  btnRow: { flexDirection: 'row', gap: 8, marginTop: 16 },
-  btn: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
+  category: { fontSize: fontSize.base, fontWeight: '500', color: c.text },
+  description: { fontSize: fontSize.sm, color: c.textSecondary, marginTop: 2 },
+  date: { fontSize: fontSize.xs, color: c.hint, marginTop: 2 },
+  btnRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
+  btn: { flex: 1, paddingVertical: spacing.md, borderRadius: 10, alignItems: 'center' },
   btnCancel: { backgroundColor: c.subtle },
   btnCancelText: { color: c.textSecondary, fontSize: 15, fontWeight: '500' },
-  btnConfirm: { backgroundColor: '#6366f1' },
+  btnConfirm: { backgroundColor: c.primary },
   btnConfirmText: { color: '#fff', fontSize: 15, fontWeight: '600' },
 });

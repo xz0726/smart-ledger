@@ -8,6 +8,7 @@ import type { Category, BudgetWithCategory } from '../types';
 import { getCategories, getBudgets, setBudget, deleteBudget } from '../services/db';
 import { getCurrentMonth } from '../utils/format';
 import { useCategoryStore } from '../stores/categoryStore';
+import { spacing, radius, fontSize } from '../theme/spacing';
 
 const PERIODS = [
   { key: 'weekly', label: '周' },
@@ -60,7 +61,7 @@ export default function BudgetManager() {
       <View style={s.header}>
         <CardTitle icon={Target} text="预算管理" />
         <TouchableOpacity onPress={() => setShowAdd(!showAdd)}>
-          <Plus size={20} color={showAdd ? '#ef4444' : '#6366f1'} />
+          <Plus size={20} color={showAdd ? c.danger : c.primary} />
         </TouchableOpacity>
       </View>
 
@@ -71,7 +72,7 @@ export default function BudgetManager() {
             {categories.map(cat => (
               <TouchableOpacity key={cat.id} onPress={() => setSelectedCategory(cat.id)}
                 style={[s.catItem, selectedCategory === cat.id && s.catItemActive]}>
-                <Text style={{ fontSize: 12, color: c.text }}>{cat.icon} {cat.name}</Text>
+                <Text style={{ fontSize: fontSize.sm, color: c.text }}>{cat.icon} {cat.name}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -105,16 +106,16 @@ export default function BudgetManager() {
           <View key={b.id} style={s.budgetItem}>
             <View style={s.budgetTop}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <View style={{ width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: b.category_color + '20', marginRight: 6 }}>
-                  <Text style={{ fontSize: 13 }}>{b.category_icon}</Text>
+                <View style={{ width: 24, height: 24, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: b.category_color + '20', marginRight: 6 }}>
+                  <Text style={{ fontSize: fontSize.md }}>{b.category_icon}</Text>
                 </View>
-                <Text style={{ fontSize: 14, color: c.text }}>{b.category_name}</Text>
-                <Text style={{ fontSize: 12, color: c.textSecondary, marginLeft: 4 }}>
+                <Text style={{ fontSize: fontSize.base, color: c.text }}>{b.category_name}</Text>
+                <Text style={{ fontSize: fontSize.sm, color: c.textSecondary, marginLeft: spacing.xs }}>
                   · {PERIODS.find(p => p.key === b.period)?.label || '月'}
                 </Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ fontSize: 12, color: isOver ? '#ef4444' : isWarning ? '#f59e0b' : c.textSecondary, marginRight: 8 }}>
+                <Text style={{ fontSize: fontSize.sm, color: isOver ? c.danger : isWarning ? c.warning : c.textSecondary, marginRight: spacing.sm }}>
                   ¥{b.spent.toFixed(0)} / ¥{b.amount.toFixed(0)}
                 </Text>
                 <TouchableOpacity onPress={() => handleDelete(b.category_id)}>
@@ -123,10 +124,10 @@ export default function BudgetManager() {
               </View>
             </View>
             <View style={s.progressBar}>
-              <View style={[s.progressFill, { width: `${pct}%`, backgroundColor: isOver ? '#ef4444' : isWarning ? '#f59e0b' : b.category_color }]} />
+              <View style={[s.progressFill, { width: `${pct}%`, backgroundColor: isOver ? c.danger : isWarning ? c.warning : b.category_color }]} />
             </View>
-            {isOver && <Text style={{ fontSize: 12, color: '#ef4444', marginTop: 2 }}>⚠️ 已超预算</Text>}
-            {isWarning && <Text style={{ fontSize: 12, color: '#f59e0b', marginTop: 2 }}>⚡ 即将超预算</Text>}
+            {isOver && <Text style={{ fontSize: fontSize.sm, color: c.danger, marginTop: 2 }}>⚠️ 已超预算</Text>}
+            {isWarning && <Text style={{ fontSize: fontSize.sm, color: c.warning, marginTop: 2 }}>⚡ 即将超预算</Text>}
           </View>
         );
       })}
@@ -135,27 +136,27 @@ export default function BudgetManager() {
 }
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
-  card: { backgroundColor: c.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16, ...cardShadow },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  title: { fontSize: 14, fontWeight: '600', color: c.text },
-  addPanel: { backgroundColor: c.inputBg, borderRadius: 8, padding: 12, marginBottom: 12 },
-  label: { fontSize: 12, color: c.textSecondary, marginBottom: 4 },
-  catRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
-  catItem: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: c.border },
-  catItemActive: { borderColor: '#6366f1', backgroundColor: c.primarySoftBg },
-  periodRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  periodItem: { flex: 1, paddingVertical: 6, borderRadius: 8, alignItems: 'center', backgroundColor: c.border },
-  periodActive: { backgroundColor: '#6366f1' },
-  periodText: { fontSize: 12, fontWeight: '500', color: c.textSecondary },
+  card: { backgroundColor: c.card, marginHorizontal: spacing.lg, marginTop: spacing.lg, borderRadius: radius.md, padding: spacing.lg, ...cardShadow },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
+  title: { fontSize: fontSize.base, fontWeight: '600', color: c.text },
+  addPanel: { backgroundColor: c.inputBg, borderRadius: radius.sm, padding: spacing.md, marginBottom: spacing.md },
+  label: { fontSize: fontSize.sm, color: c.textSecondary, marginBottom: spacing.xs },
+  catRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: spacing.md },
+  catItem: { paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.pill, borderWidth: 1, borderColor: c.border },
+  catItemActive: { borderColor: c.primary, backgroundColor: c.primarySoftBg },
+  periodRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
+  periodItem: { flex: 1, paddingVertical: 6, borderRadius: radius.sm, alignItems: 'center', backgroundColor: c.border },
+  periodActive: { backgroundColor: c.primary },
+  periodText: { fontSize: fontSize.sm, fontWeight: '500', color: c.textSecondary },
   periodTextActive: { color: '#fff' },
-  amountRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  yuan: { fontSize: 14, color: c.text, marginRight: 8 },
-  amountInput: { flex: 1, backgroundColor: c.card, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, color: c.text, borderWidth: 1, borderColor: c.border },
-  setBtn: { backgroundColor: '#6366f1', paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
-  setBtnText: { color: '#fff', fontSize: 14, fontWeight: '500' },
-  empty: { color: c.textSecondary, fontSize: 14, textAlign: 'center', paddingVertical: 12 },
-  budgetItem: { marginBottom: 12 },
-  budgetTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  progressBar: { height: 8, backgroundColor: c.subtle, borderRadius: 4, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 4 },
+  amountRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md },
+  yuan: { fontSize: fontSize.base, color: c.text, marginRight: spacing.sm },
+  amountInput: { flex: 1, backgroundColor: c.card, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.base, color: c.text, borderWidth: 1, borderColor: c.border },
+  setBtn: { backgroundColor: c.primary, paddingVertical: spacing.sm, borderRadius: radius.sm, alignItems: 'center' },
+  setBtnText: { color: '#fff', fontSize: fontSize.base, fontWeight: '500' },
+  empty: { color: c.textSecondary, fontSize: fontSize.base, textAlign: 'center', paddingVertical: spacing.md },
+  budgetItem: { marginBottom: spacing.md },
+  budgetTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs },
+  progressBar: { height: 8, backgroundColor: c.subtle, borderRadius: radius.xs, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: radius.xs },
 });

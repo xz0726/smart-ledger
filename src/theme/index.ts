@@ -39,6 +39,16 @@ export interface ThemeColors {
   tabBar: string;
   /** tab 未选中 tint */
   tabBarInactive: string;
+  /** 品牌主色（按钮/激活态/图表主色） */
+  primary: string;
+  /** 收入 / 成功 */
+  success: string;
+  /** 支出超出 / 危险 / 删除 */
+  danger: string;
+  /** 预算预警 */
+  warning: string;
+  /** 信息提示 */
+  info: string;
 }
 
 export const lightColors: ThemeColors = {
@@ -57,6 +67,11 @@ export const lightColors: ThemeColors = {
   disabled: '#cbd5e1',
   tabBar: '#ffffff',
   tabBarInactive: '#94a3b8',
+  primary: '#6366f1',
+  success: '#22c55e',
+  danger: '#ef4444',
+  warning: '#f59e0b',
+  info: '#3b82f6',
 };
 
 export const darkColors: ThemeColors = {
@@ -75,6 +90,12 @@ export const darkColors: ThemeColors = {
   disabled: '#475569',
   tabBar: '#1e293b',
   tabBarInactive: '#64748b',
+  // 深色下用提亮变体保证对比度（primary 与 primaryText 同为 indigo-400）
+  primary: '#818cf8',
+  success: '#4ade80',
+  danger: '#f87171',
+  warning: '#fbbf24',
+  info: '#60a5fa',
 };
 
 /**
@@ -124,7 +145,7 @@ export function getNavigationTheme(c: ThemeColors, dark: boolean): Theme {
     dark,
     colors: {
       ...base.colors,
-      primary: '#6366f1',          // 固定品牌主色
+      primary: c.primary,          // 品牌主色（随主题）
       background: c.background,    // 场景背景（转场 / tab 场景）
       card: c.card,                // header / 卡片默认
       text: c.text,

@@ -4,6 +4,7 @@ import Svg, { Rect, Text as SvgText } from 'react-native-svg';
 import { useThemeColors, type ThemeColors } from '../../theme';
 import type { DailyTrend } from '../../types';
 import { getCurrentMonth, getMonthRange, formatShortAmount } from '../../utils/format';
+import { spacing, radius, fontSize } from '../../theme/spacing';
 
 interface Props {
   data: DailyTrend[];
@@ -54,7 +55,7 @@ export default function DailyTrendChart({ data, month }: Props) {
             const h = d.amount > 0 ? Math.max((d.amount / max) * (CHART_H - PEAK_SPACE), 3) : 1.5;
             return (
               <Rect key={i} x={i * spacing + (spacing - barW) / 2} y={CHART_H - h}
-                width={barW} height={h} rx={1.5} fill={d.amount > 0 ? '#6366f1' : c.border} />
+                width={barW} height={h} rx={1.5} fill={d.amount > 0 ? c.primary : c.border} />
             );
           })}
           {days.map((d, i) => {
@@ -71,7 +72,7 @@ export default function DailyTrendChart({ data, month }: Props) {
             const h = (d.amount / max) * (CHART_H - PEAK_SPACE);
             return (
               <SvgText key={`m${i}`} x={i * spacing + spacing / 2} y={CHART_H - h - 4}
-                fontSize={9} fill="#6366f1" textAnchor="middle" fontWeight="bold">
+                fontSize={9} fill={c.primary} textAnchor="middle" fontWeight="bold">
                 {formatShortAmount(d.amount)}
               </SvgText>
             );
@@ -84,5 +85,5 @@ export default function DailyTrendChart({ data, month }: Props) {
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   wrap: { width: '100%' },
-  empty: { color: c.textSecondary, textAlign: 'center', paddingVertical: 24 },
+  empty: { color: c.textSecondary, textAlign: 'center', paddingVertical: spacing.xl },
 });

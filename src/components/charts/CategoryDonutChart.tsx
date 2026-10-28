@@ -4,6 +4,7 @@ import Svg, { Path } from 'react-native-svg';
 import { useThemeColors, type ThemeColors } from '../../theme';
 import type { CategoryStats } from '../../types';
 import { formatShortAmount } from '../../utils/format';
+import { spacing, radius, fontSize } from '../../theme/spacing';
 
 interface Props {
   data: CategoryStats[];
@@ -97,14 +98,14 @@ export default function CategoryDonutChart({ data }: Props) {
 }
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
-  chartWrap: { width: 168, height: 168, alignSelf: 'center', marginTop: 4 },
+  chartWrap: { width: 168, height: 168, alignSelf: 'center', marginTop: spacing.xs },
   center: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
-  centerLabel: { fontSize: 12, color: c.textSecondary },
+  centerLabel: { fontSize: fontSize.sm, color: c.textSecondary },
   centerValue: { fontSize: 18, fontWeight: 'bold', color: c.text, marginTop: 2 },
-  detail: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 12, minHeight: 28, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: c.inputBg, borderRadius: 8, alignSelf: 'center' },
-  detailIcon: { fontSize: 16, marginRight: 6 },
-  detailName: { fontSize: 14, fontWeight: '600', color: c.text, marginRight: 8 },
-  detailAmt: { fontSize: 14, fontWeight: '600', color: c.text, marginRight: 8 },
-  detailMeta: { fontSize: 12, color: c.textSecondary },
-  empty: { color: c.textSecondary, textAlign: 'center', paddingVertical: 24 },
+  detail: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: spacing.md, minHeight: 28, paddingHorizontal: spacing.md, paddingVertical: 6, backgroundColor: c.inputBg, borderRadius: radius.sm, alignSelf: 'center' },
+  detailIcon: { fontSize: fontSize.lg, marginRight: 6 },
+  detailName: { fontSize: fontSize.base, fontWeight: '600', color: c.text, marginRight: spacing.sm },
+  detailAmt: { fontSize: fontSize.base, fontWeight: '600', color: c.text, marginRight: spacing.sm },
+  detailMeta: { fontSize: fontSize.sm, color: c.textSecondary },
+  empty: { color: c.textSecondary, textAlign: 'center', paddingVertical: spacing.xl },
 });

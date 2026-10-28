@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, type ViewStyle } from 'react-native';
 import { cardShadow, useThemeColors, type ThemeColors } from '../theme';
+import { spacing, radius, fontSize } from '../theme/spacing';
 
 interface Props {
   title: string;
@@ -11,18 +12,19 @@ interface Props {
   style?: ViewStyle;
 }
 
-export default function StatCard({ title, value, subtitle, color = '#6366f1', trend, style }: Props) {
+export default function StatCard({ title, value, subtitle, color, trend, style }: Props) {
   const c = useThemeColors();
   const s = useMemo(() => createStyles(c), [c]);
+  const tone = color ?? c.primary;
 
   return (
     <View style={[s.card, style]}>
       <Text style={s.title}>{title}</Text>
-      <Text style={[s.value, { color }]}>{value}</Text>
+      <Text style={[s.value, { color: tone }]}>{value}</Text>
       {subtitle ? (
         <View style={s.subRow}>
-          {trend === 'up' && <Text style={{ color: '#ef4444', fontSize: 12, marginRight: 2 }}>↑</Text>}
-          {trend === 'down' && <Text style={{ color: '#22c55e', fontSize: 12, marginRight: 2 }}>↓</Text>}
+          {trend === 'up' && <Text style={{ color: c.danger, fontSize: fontSize.sm, marginRight: 2 }}>↑</Text>}
+          {trend === 'down' && <Text style={{ color: c.success, fontSize: fontSize.sm, marginRight: 2 }}>↓</Text>}
           <Text style={s.subtitle}>{subtitle}</Text>
         </View>
       ) : null}
@@ -31,9 +33,9 @@ export default function StatCard({ title, value, subtitle, color = '#6366f1', tr
 }
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
-  card: { backgroundColor: c.card, borderRadius: 12, padding: 16, flex: 1, marginHorizontal: 4, ...cardShadow },
-  title: { fontSize: 12, color: c.textSecondary, marginBottom: 4 },
-  value: { fontSize: 20, fontWeight: 'bold' },
-  subRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
-  subtitle: { fontSize: 12, color: c.textSecondary },
+  card: { backgroundColor: c.card, borderRadius: radius.md, padding: spacing.lg, flex: 1, marginHorizontal: spacing.xs, ...cardShadow },
+  title: { fontSize: fontSize.sm, color: c.textSecondary, marginBottom: spacing.xs },
+  value: { fontSize: fontSize.xl, fontWeight: 'bold' },
+  subRow: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.xs },
+  subtitle: { fontSize: fontSize.sm, color: c.textSecondary },
 });

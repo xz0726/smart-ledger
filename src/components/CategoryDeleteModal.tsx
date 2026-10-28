@@ -3,6 +3,7 @@ import { View, Text, Modal, TouchableOpacity, Alert, StyleSheet } from 'react-na
 import { X } from 'lucide-react-native';
 import { useThemeColors, type ThemeColors } from '../theme';
 import type { Category } from '../types';
+import { spacing, radius, fontSize } from '../theme/spacing';
 
 interface Props {
   visible: boolean;
@@ -84,21 +85,21 @@ export default function CategoryDeleteModal({ visible, category, categories, cou
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
   modal: { backgroundColor: c.card, borderTopLeftRadius: 16, borderTopRightRadius: 16 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: 14 },
   headerTitle: { fontSize: 15, fontWeight: '600', color: c.text },
-  body: { paddingHorizontal: 16, paddingBottom: 24 },
-  info: { fontSize: 14, color: c.text, lineHeight: 20 },
-  infoSub: { fontSize: 12, color: '#ef4444', marginTop: 4, marginBottom: 12 },
-  label: { fontSize: 12, color: c.textSecondary, marginBottom: 8 },
-  catRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 16 },
-  catItem: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: c.border },
-  catItemActive: { borderColor: '#6366f1', backgroundColor: c.primarySoftBg },
-  catName: { fontSize: 12, color: c.text },
-  catNameActive: { color: '#6366f1', fontWeight: '500' },
-  primaryBtn: { backgroundColor: '#6366f1', paddingVertical: 10, borderRadius: 8, alignItems: 'center', marginBottom: 8 },
-  primaryText: { color: '#fff', fontSize: 14, fontWeight: '500' },
-  dangerBtn: { paddingVertical: 10, borderRadius: 8, alignItems: 'center', marginBottom: 8 },
-  dangerText: { color: '#ef4444', fontSize: 14, fontWeight: '500' },
+  body: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
+  info: { fontSize: fontSize.base, color: c.text, lineHeight: 20 },
+  infoSub: { fontSize: fontSize.sm, color: c.danger, marginTop: spacing.xs, marginBottom: spacing.md },
+  label: { fontSize: fontSize.sm, color: c.textSecondary, marginBottom: spacing.sm },
+  catRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: spacing.lg },
+  catItem: { paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.pill, borderWidth: 1, borderColor: c.border },
+  catItemActive: { borderColor: c.primary, backgroundColor: c.primarySoftBg },
+  catName: { fontSize: fontSize.sm, color: c.text },
+  catNameActive: { color: c.primary, fontWeight: '500' },
+  primaryBtn: { backgroundColor: c.primary, paddingVertical: 10, borderRadius: radius.sm, alignItems: 'center', marginBottom: spacing.sm },
+  primaryText: { color: '#fff', fontSize: fontSize.base, fontWeight: '500' },
+  dangerBtn: { paddingVertical: 10, borderRadius: radius.sm, alignItems: 'center', marginBottom: spacing.sm },
+  dangerText: { color: c.danger, fontSize: fontSize.base, fontWeight: '500' },
   cancelBtn: { paddingVertical: 10, alignItems: 'center' },
-  cancelText: { color: c.textSecondary, fontSize: 14 },
+  cancelText: { color: c.textSecondary, fontSize: fontSize.base },
 });

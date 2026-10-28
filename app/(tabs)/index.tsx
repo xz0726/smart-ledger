@@ -17,6 +17,7 @@ import { useBudget } from '../../src/hooks/useBudget';
 import { useMonthStore } from '../../src/stores/monthStore';
 import { cardShadow, useThemeColors, type ThemeColors } from '../../src/theme';
 import { formatAmount, formatMonth, getTodayDate, isCurrentMonth } from '../../src/utils/format';
+import { spacing, radius, fontSize } from '../../src/theme/spacing';
 
 export default function Dashboard() {
   const { month, setMonth } = useMonthStore();
@@ -63,7 +64,7 @@ export default function Dashboard() {
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
       <ScrollView style={s.flex1} keyboardShouldPersistTaps="handled" refreshControl={
-        <RefreshControl refreshing={loading || budgetLoading} onRefresh={() => { reloadStats(); reloadBudgets(); }} tintColor="#6366f1" />
+        <RefreshControl refreshing={loading || budgetLoading} onRefresh={() => { reloadStats(); reloadBudgets(); }} tintColor={c.primary} />
       }>
         <MonthSwitcher month={month} onChange={setMonth} />
 
@@ -76,12 +77,12 @@ export default function Dashboard() {
             trend={overview && overview.hasPrevData
               ? (overview.monthOverMonth > 0 ? 'up' : overview.monthOverMonth < 0 ? 'down' : 'neutral')
               : 'neutral'} />
-          <StatCard title="总收入" value={formatAmount(overview?.totalIncome || 0)} color="#22c55e" />
+          <StatCard title="总收入" value={formatAmount(overview?.totalIncome || 0)} color={c.success} />
         </View>
         <View style={s.statsRow}>
           <StatCard title="日均" value={formatAmount(overview?.dailyAverage || 0)}
-            subtitle={`${overview?.recordCount || 0} 笔记录`} color="#3b82f6" />
-          <StatCard title="结余" value={formatAmount(balance)} color={balance >= 0 ? '#22c55e' : '#ef4444'} />
+            subtitle={`${overview?.recordCount || 0} 笔记录`} color={c.info} />
+          <StatCard title="结余" value={formatAmount(balance)} color={balance >= 0 ? c.success : c.danger} />
         </View>
 
         {/* 每日支出趋势 */}
@@ -101,8 +102,8 @@ export default function Dashboard() {
           <View style={s.card}>
             <CardTitle icon={Repeat} text="固定收支" />
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: 13, color: c.text }}>本月固定支出 ¥{fixedSummary.expenseTotal.toFixed(0)}</Text>
-              <Text style={{ fontSize: 13, color: '#22c55e' }}>固定收入 ¥{fixedSummary.incomeTotal.toFixed(0)}</Text>
+              <Text style={{ fontSize: fontSize.md, color: c.text }}>本月固定支出 ¥{fixedSummary.expenseTotal.toFixed(0)}</Text>
+              <Text style={{ fontSize: fontSize.md, color: c.success }}>固定收入 ¥{fixedSummary.incomeTotal.toFixed(0)}</Text>
             </View>
           </View>
         )}
@@ -117,19 +118,19 @@ export default function Dashboard() {
               const isWarn = pct >= 80 && !isOver;
               return (
                 <View key={b.id} style={s.budgetRow}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <View style={{ width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: b.category_color + '20', marginRight: 6 }}>
-                        <Text style={{ fontSize: 13 }}>{b.category_icon}</Text>
+                      <View style={{ width: 24, height: 24, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: b.category_color + '20', marginRight: 6 }}>
+                        <Text style={{ fontSize: fontSize.md }}>{b.category_icon}</Text>
                       </View>
-                      <Text style={{ fontSize: 14, color: c.text }}>{b.category_name}</Text>
+                      <Text style={{ fontSize: fontSize.base, color: c.text }}>{b.category_name}</Text>
                     </View>
-                    <Text style={{ fontSize: 12, color: isOver ? '#ef4444' : isWarn ? '#f59e0b' : c.textSecondary }}>
+                    <Text style={{ fontSize: fontSize.sm, color: isOver ? c.danger : isWarn ? c.warning : c.textSecondary }}>
                       ¥{b.spent.toFixed(0)} / ¥{b.amount.toFixed(0)}
                     </Text>
                   </View>
-                  <View style={{ height: 8, backgroundColor: c.subtle, borderRadius: 4, overflow: 'hidden' }}>
-                    <View style={{ height: '100%', width: `${pct}%`, borderRadius: 4, backgroundColor: isOver ? '#ef4444' : isWarn ? '#f59e0b' : b.category_color }} />
+                  <View style={{ height: 8, backgroundColor: c.subtle, borderRadius: radius.xs, overflow: 'hidden' }}>
+                    <View style={{ height: '100%', width: `${pct}%`, borderRadius: radius.xs, backgroundColor: isOver ? c.danger : isWarn ? c.warning : b.category_color }} />
                   </View>
                 </View>
               );
@@ -162,12 +163,12 @@ export default function Dashboard() {
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: c.background },
   flex1: { flex: 1 },
-  statsRow: { flexDirection: 'row', paddingHorizontal: 12, marginBottom: 16 },
-  card: { backgroundColor: c.card, marginHorizontal: 16, borderRadius: 12, padding: 16, marginBottom: 16, ...cardShadow },
-  budgetRow: { marginBottom: 12 },
-  histHint: { backgroundColor: c.histHintBg, paddingHorizontal: 16, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
-  histHintText: { fontSize: 12, color: c.histHintText, textAlign: 'center' },
+  statsRow: { flexDirection: 'row', paddingHorizontal: spacing.md, marginBottom: spacing.lg },
+  card: { backgroundColor: c.card, marginHorizontal: spacing.lg, borderRadius: radius.md, padding: spacing.lg, marginBottom: spacing.lg, ...cardShadow },
+  budgetRow: { marginBottom: spacing.md },
+  histHint: { backgroundColor: c.histHintBg, paddingHorizontal: spacing.lg, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs },
+  histHintText: { fontSize: fontSize.sm, color: c.histHintText, textAlign: 'center' },
   // 反色 toast：浅色下深底白字、深色下浅底深字，两种主题都清晰
-  toast: { position: 'absolute', bottom: 72, alignSelf: 'center', backgroundColor: c.text, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, elevation: 3, shadowColor: '#0f172a', shadowOpacity: 0.18, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
-  toastText: { fontSize: 13, color: c.background, fontWeight: '500' },
+  toast: { position: 'absolute', bottom: 72, alignSelf: 'center', backgroundColor: c.text, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radius.pill, elevation: 3, shadowColor: '#0f172a', shadowOpacity: 0.18, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
+  toastText: { fontSize: fontSize.md, color: c.background, fontWeight: '500' },
 });

@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import { Home, ReceiptText, Settings } from 'lucide-react-native';
 import { cardShadow, useThemeColors } from '../../src/theme';
+import { spacing, radius, fontSize } from '../../src/theme/spacing';
 
 export default function TabLayout() {
   const c = useThemeColors();
@@ -8,17 +9,17 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#6366f1',
+        tabBarActiveTintColor: c.primary,
         tabBarInactiveTintColor: c.tabBarInactive,
         tabBarStyle: {
           backgroundColor: c.tabBar,
           borderTopColor: c.border,
           height: 64,
-          paddingBottom: 8,
+          paddingBottom: spacing.sm,
           paddingTop: 6,
           ...cardShadow,
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
+        tabBarLabelStyle: { fontSize: fontSize.xs, fontWeight: '500' },
         headerStyle: { backgroundColor: c.card, shadowColor: 'transparent' },
         headerTitleStyle: { color: c.text, fontWeight: '600', fontSize: 17 },
         headerShadowVisible: false,

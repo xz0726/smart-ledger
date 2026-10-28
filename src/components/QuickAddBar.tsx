@@ -8,6 +8,7 @@ import type { QuickItemWithCategory } from '../types';
 import { getQuickItemsWithCategory } from '../services/db';
 import { useCategoryStore } from '../stores/categoryStore';
 import { formatAmount } from '../utils/format';
+import { spacing, radius, fontSize } from '../theme/spacing';
 
 interface Props {
   onQuickAdd: (item: QuickItemWithCategory) => void;
@@ -52,10 +53,10 @@ export default function QuickAddBar({ onQuickAdd }: Props) {
 }
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
-  card: { backgroundColor: c.card, marginHorizontal: 16, borderRadius: 12, padding: 16, marginBottom: 16, ...cardShadow },
-  row: { flexDirection: 'row', gap: 8 },
-  btn: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.primarySoftBg, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8 },
-  btnIcon: { fontSize: 14, marginRight: 4 },
-  btnName: { fontSize: 13, color: c.primaryText, fontWeight: '500', marginRight: 6 },
-  btnAmount: { fontSize: 13, color: c.primaryText, fontWeight: '600' },
+  card: { backgroundColor: c.card, marginHorizontal: spacing.lg, borderRadius: radius.md, padding: spacing.lg, marginBottom: spacing.lg, ...cardShadow },
+  row: { flexDirection: 'row', gap: spacing.sm },
+  btn: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.primarySoftBg, borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  btnIcon: { fontSize: fontSize.base, marginRight: spacing.xs },
+  btnName: { fontSize: fontSize.md, color: c.primaryText, fontWeight: '500', marginRight: 6 },
+  btnAmount: { fontSize: fontSize.md, color: c.primaryText, fontWeight: '600' },
 });

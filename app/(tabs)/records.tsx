@@ -12,6 +12,7 @@ import { useMonthStore } from '../../src/stores/monthStore';
 import { useThemeColors, type ThemeColors } from '../../src/theme';
 import type { ExpenseWithCategory } from '../../src/types';
 import { formatDate, formatMonth, isCurrentMonth } from '../../src/utils/format';
+import { spacing, radius, fontSize } from '../../src/theme/spacing';
 
 export default function Records() {
   const { month, setMonth } = useMonthStore();
@@ -67,13 +68,13 @@ export default function Records() {
       <FlatList
         data={groupedExpenses}
         keyExtractor={item => item.date}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={() => load({ search: search.trim() || undefined })} tintColor="#6366f1" />}
-        ListEmptyComponent={<View style={s.emptyWrap}><Text style={{ fontSize: 40, marginBottom: 12 }}>📝</Text>
-          <Text style={{ color: c.textSecondary, fontSize: 14 }}>{search ? '没有匹配的记录' : '还没有记账记录'}</Text></View>}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={() => load({ search: search.trim() || undefined })} tintColor={c.primary} />}
+        ListEmptyComponent={<View style={s.emptyWrap}><Text style={{ fontSize: 40, marginBottom: spacing.md }}>📝</Text>
+          <Text style={{ color: c.textSecondary, fontSize: fontSize.base }}>{search ? '没有匹配的记录' : '还没有记账记录'}</Text></View>}
         renderItem={({ item: group }) => (
           <View>
-            <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 }}>
-              <Text style={{ fontSize: 12, color: c.textSecondary, fontWeight: '500' }}>
+            <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xs }}>
+              <Text style={{ fontSize: fontSize.sm, color: c.textSecondary, fontWeight: '500' }}>
                 {!isCurrentMonth(month) ? `${formatMonth(group.date.slice(0, 7))} · ` : ''}{formatDate(group.date)}
               </Text>
             </View>
@@ -82,7 +83,7 @@ export default function Records() {
                 onPress={() => handleEdit(expense)}
                 onLongPress={() => handleDelete(expense.id, expense.description || expense.raw_input || expense.category_name)} />
             ))}
-            <View style={{ marginHorizontal: 16, marginVertical: 6, borderBottomWidth: 1, borderBottomColor: c.subtle }} />
+            <View style={{ marginHorizontal: spacing.lg, marginVertical: 6, borderBottomWidth: 1, borderBottomColor: c.subtle }} />
           </View>
         )}
         contentContainerStyle={{ paddingBottom: 100 }}
@@ -96,9 +97,9 @@ export default function Records() {
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: c.background },
-  searchBar: { backgroundColor: c.card, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.subtle },
-  searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.inputBg, borderRadius: 8, paddingHorizontal: 12 },
-  searchInput: { flex: 1, paddingVertical: 8, paddingHorizontal: 8, fontSize: 14, color: c.text },
-  clear: { color: '#6366f1', fontSize: 14 },
+  searchBar: { backgroundColor: c.card, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: c.subtle },
+  searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.inputBg, borderRadius: radius.sm, paddingHorizontal: spacing.md },
+  searchInput: { flex: 1, paddingVertical: spacing.sm, paddingHorizontal: spacing.sm, fontSize: fontSize.base, color: c.text },
+  clear: { color: c.primary, fontSize: fontSize.base },
   emptyWrap: { alignItems: 'center', justifyContent: 'center', paddingVertical: 80 },
 });

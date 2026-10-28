@@ -7,6 +7,7 @@ import { QR_IMAGES, type QrKey } from '../../src/constants/support';
 import { shareAssetFile } from '../../src/services/nativeActions';
 import { Heart, QrCode } from 'lucide-react-native';
 import CardTitle from '../../src/components/CardTitle';
+import { spacing, radius, fontSize } from '../../src/theme/spacing';
 
 // 把打包内置的收款码图落到本地缓存文件，再调起系统分享（分享面板可保存到相册/文件）
 const saveOrShareQr = async (key: QrKey) => {
@@ -85,22 +86,22 @@ export default function Donate() {
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: c.background },
-  content: { paddingBottom: 24 },
-  card: { backgroundColor: c.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16, ...cardShadow },
-  cardTitle: { fontSize: 14, fontWeight: '600', color: c.text, marginBottom: 12 },
-  desc: { fontSize: 14, color: c.textSecondary, lineHeight: 22 },
-  hint: { fontSize: 12, color: c.hint, marginTop: 8 },
+  content: { paddingBottom: spacing.xl },
+  card: { backgroundColor: c.card, marginHorizontal: spacing.lg, marginTop: spacing.lg, borderRadius: radius.md, padding: spacing.lg, ...cardShadow },
+  cardTitle: { fontSize: fontSize.base, fontWeight: '600', color: c.text, marginBottom: spacing.md },
+  desc: { fontSize: fontSize.base, color: c.textSecondary, lineHeight: 22 },
+  hint: { fontSize: fontSize.sm, color: c.hint, marginTop: spacing.sm },
   qrWrap: {
     alignItems: 'center', justifyContent: 'center',
-    backgroundColor: c.card, borderRadius: 8, borderWidth: 1, borderColor: c.border,
-    padding: 8,
+    backgroundColor: c.card, borderRadius: radius.sm, borderWidth: 1, borderColor: c.border,
+    padding: spacing.sm,
   },
   qrImg: { width: 220, height: 220 },
-  qrHint: { fontSize: 12, color: c.hint, textAlign: 'center', marginTop: 10 },
+  qrHint: { fontSize: fontSize.sm, color: c.hint, textAlign: 'center', marginTop: 10 },
   previewBackdrop: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.9)',
     alignItems: 'center', justifyContent: 'center',
   },
   previewImg: { width: '85%', height: '70%' },
-  previewHint: { color: '#ffffff', fontSize: 13, marginTop: 20 },
+  previewHint: { color: '#ffffff', fontSize: fontSize.md, marginTop: 20 },
 });

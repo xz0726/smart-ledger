@@ -7,6 +7,7 @@ import { parseWithRules } from '../services/ruleEngine';
 import { loadAIConfig, parseWithAI } from '../services/ai';
 import { getCategories, getCustomRules } from '../services/db';
 import ParsePreviewModal from './ParsePreviewModal';
+import { spacing, radius, fontSize } from '../theme/spacing';
 
 interface Props {
   onAddExpense: (amount: number, categoryId: number, date: string, description?: string, rawInput?: string) => Promise<void>;
@@ -113,9 +114,9 @@ export default function InputBar({ onAddExpense }: Props) {
             placeholderTextColor={c.hint} value={text} onChangeText={setText}
             onSubmitEditing={handleSubmit} returnKeyType="send" editable={!loading} />
         </View>
-        {loading ? <ActivityIndicator size="small" color="#6366f1" style={{ marginLeft: 12 }} /> :
+        {loading ? <ActivityIndicator size="small" color={c.primary} style={{ marginLeft: spacing.md }} /> :
           <TouchableOpacity onPress={handleSubmit} disabled={!text.trim()}
-            style={[s.sendBtn, { backgroundColor: text.trim() ? '#6366f1' : c.disabled }]}>
+            style={[s.sendBtn, { backgroundColor: text.trim() ? c.primary : c.disabled }]}>
             <Send size={18} color="white" />
           </TouchableOpacity>}
       </View>
@@ -127,8 +128,8 @@ export default function InputBar({ onAddExpense }: Props) {
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   wrap: { backgroundColor: c.card, borderTopWidth: 1, borderTopColor: c.subtle },
-  bar: { paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center' },
-  inputWrap: { flex: 1, backgroundColor: c.inputBg, borderRadius: 24, paddingHorizontal: 16, paddingVertical: Platform.OS === 'ios' ? 10 : 8, flexDirection: 'row', alignItems: 'center' },
-  input: { flex: 1, fontSize: 14, color: c.text },
-  sendBtn: { marginLeft: 12, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  bar: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md, flexDirection: 'row', alignItems: 'center' },
+  inputWrap: { flex: 1, backgroundColor: c.inputBg, borderRadius: 24, paddingHorizontal: spacing.lg, paddingVertical: Platform.OS === 'ios' ? 10 : 8, flexDirection: 'row', alignItems: 'center' },
+  input: { flex: 1, fontSize: fontSize.base, color: c.text },
+  sendBtn: { marginLeft: spacing.md, width: 40, height: 40, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
 });

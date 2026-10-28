@@ -10,6 +10,7 @@ import CardTitle from '../../src/components/CardTitle';
 import { cardShadow, useThemeColors, type ThemeColors } from '../../src/theme';
 import { SUPPORT } from '../../src/constants/support';
 import { composeMail } from '../../src/services/nativeActions';
+import { spacing, radius, fontSize } from '../../src/theme/spacing';
 
 const FEEDBACK_TYPES = ['功能建议', '问题反馈', '数据问题', '其他','找作者聊天'] as const;
 const MAX_CONTENT_LENGTH = 500;
@@ -123,32 +124,32 @@ export default function Feedback() {
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   flex1: { flex: 1 },
-  content: { paddingBottom: 24 },
-  card: { backgroundColor: c.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16, ...cardShadow },
-  cardTitle: { fontSize: 14, fontWeight: '600', color: c.text, marginBottom: 12 },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  content: { paddingBottom: spacing.xl },
+  card: { backgroundColor: c.card, marginHorizontal: spacing.lg, marginTop: spacing.lg, borderRadius: radius.md, padding: spacing.lg, ...cardShadow },
+  cardTitle: { fontSize: fontSize.base, fontWeight: '600', color: c.text, marginBottom: spacing.md },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   chip: {
-    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 16,
+    paddingHorizontal: 14, paddingVertical: 7, borderRadius: radius.lg,
     borderWidth: 1, borderColor: c.border, backgroundColor: c.card,
   },
-  chipActive: { borderColor: '#6366f1', backgroundColor: c.primarySoftBg },
-  chipText: { fontSize: 13, color: c.textSecondary },
+  chipActive: { borderColor: c.primary, backgroundColor: c.primarySoftBg },
+  chipText: { fontSize: fontSize.md, color: c.textSecondary },
   chipTextActive: { color: c.primaryText, fontWeight: '600' },
   textarea: {
-    backgroundColor: c.inputBg, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10,
-    fontSize: 14, color: c.text, borderWidth: 1, borderColor: c.border,
+    backgroundColor: c.inputBg, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: 10,
+    fontSize: fontSize.base, color: c.text, borderWidth: 1, borderColor: c.border,
     minHeight: 120,
   },
-  counter: { fontSize: 12, color: c.hint, textAlign: 'right', marginTop: 4 },
+  counter: { fontSize: fontSize.sm, color: c.hint, textAlign: 'right', marginTop: spacing.xs },
   input: {
-    backgroundColor: c.inputBg, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10,
-    fontSize: 14, color: c.text, borderWidth: 1, borderColor: c.border,
+    backgroundColor: c.inputBg, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: 10,
+    fontSize: fontSize.base, color: c.text, borderWidth: 1, borderColor: c.border,
   },
-  hint: { fontSize: 12, color: c.hint, marginTop: 6 },
+  hint: { fontSize: fontSize.sm, color: c.hint, marginTop: 6 },
   btnPrimary: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    marginHorizontal: 16, marginTop: 20, paddingVertical: 12, borderRadius: 8, backgroundColor: '#6366f1',
+    marginHorizontal: spacing.lg, marginTop: 20, paddingVertical: spacing.md, borderRadius: radius.sm, backgroundColor: c.primary,
   },
-  btnPrimaryText: { color: '#fff', fontSize: 14, fontWeight: '600', marginLeft: 6 },
-  tip: { fontSize: 12, color: c.hint, marginHorizontal: 16, marginTop: 10, textAlign: 'center' },
+  btnPrimaryText: { color: '#fff', fontSize: fontSize.base, fontWeight: '600', marginLeft: 6 },
+  tip: { fontSize: fontSize.sm, color: c.hint, marginHorizontal: spacing.lg, marginTop: 10, textAlign: 'center' },
 });

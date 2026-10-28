@@ -5,6 +5,7 @@ import { useThemeColors, type ThemeColors } from '../theme';
 import type { Category, CustomRule } from '../types';
 import { getCustomRules, addCustomRule, deleteCustomRule } from '../services/db';
 import { useCategoryStore } from '../stores/categoryStore';
+import { spacing, radius, fontSize } from '../theme/spacing';
 
 interface Props {
   visible: boolean;
@@ -106,7 +107,7 @@ export default function CategoryKeywordsModal({ visible, category, onClose }: Pr
                 <View key={rule.id} style={s.ruleItem}>
                   <Text style={s.keyword}>{rule.keyword}</Text>
                   <TouchableOpacity onPress={() => handleDelete(rule)} style={s.deleteBtn}>
-                    <Trash2 size={16} color="#ef4444" />
+                    <Trash2 size={16} color={c.danger} />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -123,16 +124,16 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
   backdrop: { flex: 1 },
   modal: { backgroundColor: c.card, borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: '85%' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: 14 },
   headerTitle: { fontSize: 15, fontWeight: '600', color: c.text },
-  hint: { fontSize: 12, color: c.textSecondary, paddingHorizontal: 16, marginBottom: 8 },
-  addRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  input: { flex: 1, backgroundColor: c.inputBg, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, color: c.text, borderWidth: 1, borderColor: c.border },
-  addBtn: { backgroundColor: '#6366f1', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
-  addBtnText: { color: '#fff', fontSize: 14, fontWeight: '500' },
-  body: { paddingHorizontal: 16, paddingBottom: 24 },
-  empty: { color: c.textSecondary, fontSize: 14, textAlign: 'center', paddingVertical: 20 },
+  hint: { fontSize: fontSize.sm, color: c.textSecondary, paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
+  addRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md },
+  input: { flex: 1, backgroundColor: c.inputBg, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.base, color: c.text, borderWidth: 1, borderColor: c.border },
+  addBtn: { backgroundColor: c.primary, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radius.sm },
+  addBtnText: { color: '#fff', fontSize: fontSize.base, fontWeight: '500' },
+  body: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
+  empty: { color: c.textSecondary, fontSize: fontSize.base, textAlign: 'center', paddingVertical: 20 },
   ruleItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.subtle },
-  keyword: { flex: 1, fontSize: 14, fontWeight: '500', color: c.text },
-  deleteBtn: { padding: 4 },
+  keyword: { flex: 1, fontSize: fontSize.base, fontWeight: '500', color: c.text },
+  deleteBtn: { padding: spacing.xs },
 });

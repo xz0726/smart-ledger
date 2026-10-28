@@ -7,6 +7,7 @@ import { Copy, Users, Megaphone, MessagesSquare } from 'lucide-react-native';
 import CardTitle from '../../src/components/CardTitle';
 import { cardShadow, useThemeColors, type ThemeColors } from '../../src/theme';
 import { SUPPORT, mqqGroupUrl } from '../../src/constants/support';
+import { spacing, radius, fontSize } from '../../src/theme/spacing';
 
 const copyText = async (text: string, label: string) => {
   try {
@@ -52,7 +53,7 @@ export default function Contact() {
         <Text style={st.hint}>进群请备注：皇帝驾到</Text>
         <View style={st.btnRow}>
           <TouchableOpacity style={st.btnOutline} onPress={() => copyText(SUPPORT.qqGroupId, '群号')}>
-            <Copy size={16} color="#6366f1" />
+            <Copy size={16} color={c.primary} />
             <Text style={st.btnOutlineText}>复制群号</Text>
           </TouchableOpacity>
           <TouchableOpacity style={st.btnPrimary} onPress={openQqGroup}>
@@ -69,21 +70,21 @@ export default function Contact() {
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: c.background },
-  card: { backgroundColor: c.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16, ...cardShadow },
-  cardTitle: { fontSize: 14, fontWeight: '600', color: c.text, marginBottom: 12 },
-  desc: { fontSize: 14, color: c.textSecondary, lineHeight: 22 },
+  card: { backgroundColor: c.card, marginHorizontal: spacing.lg, marginTop: spacing.lg, borderRadius: radius.md, padding: spacing.lg, ...cardShadow },
+  cardTitle: { fontSize: fontSize.base, fontWeight: '600', color: c.text, marginBottom: spacing.md },
+  desc: { fontSize: fontSize.base, color: c.textSecondary, lineHeight: 22 },
   groupName: { fontSize: 15, fontWeight: '600', color: c.text },
-  groupId: { fontSize: 13, color: '#6366f1', marginTop: 6, fontWeight: '500' },
-  hint: { fontSize: 12, color: c.hint, marginTop: 4, marginBottom: 14 },
-  btnRow: { flexDirection: 'row', gap: 8 },
+  groupId: { fontSize: fontSize.md, color: c.primary, marginTop: 6, fontWeight: '500' },
+  hint: { fontSize: fontSize.sm, color: c.hint, marginTop: spacing.xs, marginBottom: 14 },
+  btnRow: { flexDirection: 'row', gap: spacing.sm },
   btnOutline: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: '#6366f1',
+    paddingVertical: 10, borderRadius: radius.sm, borderWidth: 1, borderColor: c.primary,
   },
-  btnOutlineText: { color: '#6366f1', fontSize: 14, fontWeight: '500', marginLeft: 6 },
+  btnOutlineText: { color: c.primary, fontSize: fontSize.base, fontWeight: '500', marginLeft: 6 },
   btnPrimary: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    paddingVertical: 10, borderRadius: 8, backgroundColor: '#6366f1',
+    paddingVertical: 10, borderRadius: radius.sm, backgroundColor: c.primary,
   },
-  btnPrimaryText: { color: '#fff', fontSize: 14, fontWeight: '500', marginLeft: 6 },
+  btnPrimaryText: { color: '#fff', fontSize: fontSize.base, fontWeight: '500', marginLeft: 6 },
 });

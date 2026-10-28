@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useThemeColors, type ThemeColors } from '../theme';
 import type { ExpenseWithCategory } from '../types';
 import { formatAmount } from '../utils/format';
+import { spacing, radius, fontSize } from '../theme/spacing';
 
 interface Props {
   expense: ExpenseWithCategory;
@@ -27,7 +28,7 @@ export default function ExpenseCard({ expense, onPress, onLongPress }: Props) {
           <Text style={s.cat}>{expense.category_name}</Text>
         </View>
       </View>
-      <Text style={[s.amount, expense.category_type === 'income' ? { color: '#22c55e' } : { color: c.text }]}>
+      <Text style={[s.amount, expense.category_type === 'income' ? { color: c.success } : { color: c.text }]}>
         {expense.category_type === 'income' ? '+' : '-'}{formatAmount(expense.amount)}
       </Text>
     </TouchableOpacity>
@@ -35,12 +36,12 @@ export default function ExpenseCard({ expense, onPress, onLongPress }: Props) {
 }
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
-  card: { backgroundColor: c.card, marginHorizontal: 16, marginVertical: 2, paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 12 },
+  card: { backgroundColor: c.card, marginHorizontal: spacing.lg, marginVertical: 2, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: radius.md },
   left: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  icon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  icon: { width: 40, height: 40, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md },
   iconText: { fontSize: 18 },
   info: { flex: 1 },
-  desc: { fontSize: 14, color: c.text, fontWeight: '500' },
-  cat: { fontSize: 12, color: c.textSecondary, marginTop: 2 },
-  amount: { fontSize: 16, fontWeight: '600' },
+  desc: { fontSize: fontSize.base, color: c.text, fontWeight: '500' },
+  cat: { fontSize: fontSize.sm, color: c.textSecondary, marginTop: 2 },
+  amount: { fontSize: fontSize.lg, fontWeight: '600' },
 });

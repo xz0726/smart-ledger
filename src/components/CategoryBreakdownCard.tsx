@@ -4,6 +4,7 @@ import { cardShadow, useThemeColors, type ThemeColors } from '../theme';
 import type { CategoryStats } from '../types';
 import { formatShortAmount } from '../utils/format';
 import CategoryDonutChart from './charts/CategoryDonutChart';
+import { spacing, radius, fontSize } from '../theme/spacing';
 
 interface Props {
   data: CategoryStats[];
@@ -85,25 +86,25 @@ export default function CategoryBreakdownCard({ data }: Props) {
 }
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
-  card: { backgroundColor: c.card, marginHorizontal: 16, borderRadius: 12, padding: 16, marginBottom: 16, ...cardShadow },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  card: { backgroundColor: c.card, marginHorizontal: spacing.lg, borderRadius: radius.md, padding: spacing.lg, marginBottom: spacing.lg, ...cardShadow },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md },
   cardLeft: { flexDirection: 'row', alignItems: 'baseline' },
-  cardTitle: { fontSize: 14, fontWeight: '600', color: c.text, marginRight: 8 },
-  total: { fontSize: 12, color: c.textSecondary },
-  seg: { flexDirection: 'row', backgroundColor: c.subtle, borderRadius: 8, padding: 2 },
-  segItem: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 6 },
+  cardTitle: { fontSize: fontSize.base, fontWeight: '600', color: c.text, marginRight: spacing.sm },
+  total: { fontSize: fontSize.sm, color: c.textSecondary },
+  seg: { flexDirection: 'row', backgroundColor: c.subtle, borderRadius: radius.sm, padding: 2 },
+  segItem: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: 6 },
   segItemActive: { backgroundColor: c.card, ...cardShadow },
-  segText: { fontSize: 12, color: c.textSecondary },
-  segTextActive: { color: '#6366f1', fontWeight: '600' },
-  empty: { color: c.textSecondary, textAlign: 'center', paddingVertical: 24 },
+  segText: { fontSize: fontSize.sm, color: c.textSecondary },
+  segTextActive: { color: c.primary, fontWeight: '600' },
+  empty: { color: c.textSecondary, textAlign: 'center', paddingVertical: spacing.xl },
   catRow: { marginBottom: 10 },
-  catLeft: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-  iconChip: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  iconChipText: { fontSize: 13 },
-  catName: { fontSize: 13, color: c.text, marginLeft: 6 },
+  catLeft: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs },
+  iconChip: { width: 24, height: 24, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  iconChipText: { fontSize: fontSize.md },
+  catName: { fontSize: fontSize.md, color: c.text, marginLeft: 6 },
   catRight: { flexDirection: 'row', alignItems: 'center' },
-  bar: { flex: 1, height: 8, backgroundColor: c.subtle, borderRadius: 4, overflow: 'hidden', marginRight: 8 },
-  barFill: { height: '100%', borderRadius: 4 },
-  catPct: { fontSize: 12, color: c.textSecondary, width: 36, textAlign: 'right' },
-  catAmt: { fontSize: 12, color: c.textSecondary, width: 60, textAlign: 'right' },
+  bar: { flex: 1, height: 8, backgroundColor: c.subtle, borderRadius: radius.xs, overflow: 'hidden', marginRight: spacing.sm },
+  barFill: { height: '100%', borderRadius: radius.xs },
+  catPct: { fontSize: fontSize.sm, color: c.textSecondary, width: 36, textAlign: 'right' },
+  catAmt: { fontSize: fontSize.sm, color: c.textSecondary, width: 60, textAlign: 'right' },
 });

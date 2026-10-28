@@ -4,6 +4,7 @@ import { X, Check } from 'lucide-react-native';
 import { useThemeColors, type ThemeColors } from '../theme';
 import type { ExpenseWithCategory, Category } from '../types';
 import { getCategories } from '../services/db';
+import { spacing, radius, fontSize } from '../theme/spacing';
 
 interface Props {
   visible: boolean;
@@ -102,20 +103,20 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
   backdrop: { flex: 1 },
   modal: { backgroundColor: c.card, borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: '85%' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.subtle },
-  headerTitle: { fontSize: 16, fontWeight: '600', color: c.text },
-  saveBtn: { backgroundColor: '#6366f1', paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20, flexDirection: 'row', alignItems: 'center' },
-  saveText: { color: '#fff', fontSize: 14, fontWeight: '500', marginLeft: 4 },
-  body: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 32 },
-  label: { fontSize: 12, color: c.textSecondary, marginBottom: 4 },
-  amountRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  yuan: { fontSize: 18, color: c.text, fontWeight: '600', marginRight: 8 },
-  amountInput: { flex: 1, backgroundColor: c.inputBg, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 18, color: c.text, fontWeight: '600', borderWidth: 1, borderColor: c.border },
-  catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  catItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: c.border, backgroundColor: c.card },
-  catItemActive: { borderColor: '#6366f1', backgroundColor: c.primarySoftBg },
-  catName: { fontSize: 13, color: c.textSecondary, marginLeft: 4 },
-  catNameActive: { color: '#6366f1', fontWeight: '500' },
-  field: { backgroundColor: c.inputBg, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: c.text, borderWidth: 1, borderColor: c.border, marginBottom: 16 },
-  raw: { fontSize: 14, color: c.textSecondary, backgroundColor: c.inputBg, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 16 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: c.subtle },
+  headerTitle: { fontSize: fontSize.lg, fontWeight: '600', color: c.text },
+  saveBtn: { backgroundColor: c.primary, paddingHorizontal: spacing.lg, paddingVertical: 6, borderRadius: radius.pill, flexDirection: 'row', alignItems: 'center' },
+  saveText: { color: '#fff', fontSize: fontSize.base, fontWeight: '500', marginLeft: spacing.xs },
+  body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
+  label: { fontSize: fontSize.sm, color: c.textSecondary, marginBottom: spacing.xs },
+  amountRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.lg },
+  yuan: { fontSize: 18, color: c.text, fontWeight: '600', marginRight: spacing.sm },
+  amountInput: { flex: 1, backgroundColor: c.inputBg, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: 10, fontSize: 18, color: c.text, fontWeight: '600', borderWidth: 1, borderColor: c.border },
+  catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg },
+  catItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.pill, borderWidth: 1, borderColor: c.border, backgroundColor: c.card },
+  catItemActive: { borderColor: c.primary, backgroundColor: c.primarySoftBg },
+  catName: { fontSize: fontSize.md, color: c.textSecondary, marginLeft: spacing.xs },
+  catNameActive: { color: c.primary, fontWeight: '500' },
+  field: { backgroundColor: c.inputBg, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: 10, fontSize: fontSize.base, color: c.text, borderWidth: 1, borderColor: c.border, marginBottom: spacing.lg },
+  raw: { fontSize: fontSize.base, color: c.textSecondary, backgroundColor: c.inputBg, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: 10, marginBottom: spacing.lg },
 });

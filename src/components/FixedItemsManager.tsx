@@ -7,6 +7,7 @@ import { cardShadow, useThemeColors, type ThemeColors } from '../theme';
 import type { Category, FixedItemWithCategory } from '../types';
 import { getCategories, getFixedItemsWithCategory, addFixedItem, deleteFixedItem, syncFixedItems } from '../services/db';
 import { useCategoryStore } from '../stores/categoryStore';
+import { spacing, radius, fontSize } from '../theme/spacing';
 
 const FREQUENCIES = [
   { key: 'daily', label: '每天' },
@@ -104,7 +105,7 @@ export default function FixedItemsManager() {
       <View style={s.header}>
         <CardTitle icon={Repeat} text="固定收支" />
         <TouchableOpacity onPress={() => setShowAdd(!showAdd)}>
-          <Plus size={20} color={showAdd ? '#ef4444' : '#6366f1'} />
+          <Plus size={20} color={showAdd ? c.danger : c.primary} />
         </TouchableOpacity>
       </View>
       <Text style={s.hint}>自动生成到期记录：如工作日通勤 7 元/天、每月话费 20 元</Text>
@@ -116,21 +117,21 @@ export default function FixedItemsManager() {
           <Text style={s.label}>类型</Text>
           <View style={s.typeRow}>
             <TouchableOpacity onPress={() => { setType('expense'); setSelectedCategory(0); }}
-              style={[s.typeBtn, type === 'expense' && { backgroundColor: '#6366f1' }]}>
+              style={[s.typeBtn, type === 'expense' && { backgroundColor: c.primary }]}>
               <Text style={[s.typeText, type === 'expense' && { color: '#fff' }]}>支出</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => { setType('income'); setSelectedCategory(0); }}
-              style={[s.typeBtn, type === 'income' && { backgroundColor: '#22c55e' }]}>
+              style={[s.typeBtn, type === 'income' && { backgroundColor: c.success }]}>
               <Text style={[s.typeText, type === 'income' && { color: '#fff' }]}>收入</Text>
             </TouchableOpacity>
           </View>
           <Text style={s.label}>分类</Text>
           <View style={s.catRow}>
-            {catOptions.length === 0 ? <Text style={{ fontSize: 12, color: c.hint }}>该类型暂无分类</Text> :
+            {catOptions.length === 0 ? <Text style={{ fontSize: fontSize.sm, color: c.hint }}>该类型暂无分类</Text> :
               catOptions.map(cat => (
                 <TouchableOpacity key={cat.id} onPress={() => setSelectedCategory(cat.id)}
                   style={[s.catItem, selectedCategory === cat.id && s.catItemActive]}>
-                  <Text style={{ fontSize: 12, color: c.text }}>{cat.icon} {cat.name}</Text>
+                  <Text style={{ fontSize: fontSize.sm, color: c.text }}>{cat.icon} {cat.name}</Text>
                 </TouchableOpacity>
               ))}
           </View>
@@ -156,7 +157,7 @@ export default function FixedItemsManager() {
                 {WEEKDAYS.map(w => (
                   <TouchableOpacity key={w.key} onPress={() => setWeekday(w.key)}
                     style={[s.catItem, weekday === w.key && s.catItemActive]}>
-                    <Text style={{ fontSize: 12, color: c.text }}>周{w.label}</Text>
+                    <Text style={{ fontSize: fontSize.sm, color: c.text }}>周{w.label}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -184,12 +185,12 @@ export default function FixedItemsManager() {
               <Text style={{ fontSize: 15 }}>{item.category_icon || '📦'}</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, color: c.text }}>{item.name}</Text>
-              <Text style={{ fontSize: 12, color: c.textSecondary }}>
+              <Text style={{ fontSize: fontSize.base, color: c.text }}>{item.name}</Text>
+              <Text style={{ fontSize: fontSize.sm, color: c.textSecondary }}>
                 {frequencyLabel(item.frequency, item.weekday, item.day_of_month)} · {item.category_name || '未知分类'}
               </Text>
             </View>
-            <Text style={{ fontSize: 14, fontWeight: '600', color: item.type === 'income' ? '#22c55e' : '#6366f1', marginRight: 8 }}>
+            <Text style={{ fontSize: fontSize.base, fontWeight: '600', color: item.type === 'income' ? c.success : c.primary, marginRight: spacing.sm }}>
               ¥{item.amount.toFixed(2)}
             </Text>
             <TouchableOpacity onPress={() => handleDelete(item)}>
@@ -201,7 +202,7 @@ export default function FixedItemsManager() {
 
       {items.length > 0 && (
         <TouchableOpacity style={s.syncBtn} onPress={handleSync} disabled={syncing}>
-          <RefreshCw size={14} color="#6366f1" />
+          <RefreshCw size={14} color={c.primary} />
           <Text style={s.syncText}>{syncing ? '同步中…' : '立即同步补账'}</Text>
         </TouchableOpacity>
       )}
@@ -210,32 +211,32 @@ export default function FixedItemsManager() {
 }
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
-  card: { backgroundColor: c.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16, ...cardShadow },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  title: { fontSize: 14, fontWeight: '600', color: c.text },
-  hint: { fontSize: 12, color: c.textSecondary, marginBottom: 12 },
-  addPanel: { backgroundColor: c.inputBg, borderRadius: 8, padding: 12, marginBottom: 12 },
-  label: { fontSize: 12, color: c.textSecondary, marginBottom: 4 },
-  input: { backgroundColor: c.card, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, color: c.text, borderWidth: 1, borderColor: c.border, marginBottom: 12 },
-  typeRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  typeBtn: { flex: 1, paddingVertical: 6, borderRadius: 8, alignItems: 'center', backgroundColor: c.border },
-  typeText: { fontSize: 12, fontWeight: '500', color: c.textSecondary },
-  catRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
-  catItem: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: c.border },
-  catItemActive: { borderColor: '#6366f1', backgroundColor: c.primarySoftBg },
-  amountRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  yuan: { fontSize: 14, color: c.text, marginRight: 8 },
-  amountInput: { flex: 1, backgroundColor: c.card, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, color: c.text, borderWidth: 1, borderColor: c.border },
-  freqRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  freqItem: { flex: 1, paddingVertical: 6, borderRadius: 8, alignItems: 'center', backgroundColor: c.border },
-  freqActive: { backgroundColor: '#6366f1' },
-  freqText: { fontSize: 12, fontWeight: '500', color: c.textSecondary },
+  card: { backgroundColor: c.card, marginHorizontal: spacing.lg, marginTop: spacing.lg, borderRadius: radius.md, padding: spacing.lg, ...cardShadow },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs },
+  title: { fontSize: fontSize.base, fontWeight: '600', color: c.text },
+  hint: { fontSize: fontSize.sm, color: c.textSecondary, marginBottom: spacing.md },
+  addPanel: { backgroundColor: c.inputBg, borderRadius: radius.sm, padding: spacing.md, marginBottom: spacing.md },
+  label: { fontSize: fontSize.sm, color: c.textSecondary, marginBottom: spacing.xs },
+  input: { backgroundColor: c.card, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.base, color: c.text, borderWidth: 1, borderColor: c.border, marginBottom: spacing.md },
+  typeRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
+  typeBtn: { flex: 1, paddingVertical: 6, borderRadius: radius.sm, alignItems: 'center', backgroundColor: c.border },
+  typeText: { fontSize: fontSize.sm, fontWeight: '500', color: c.textSecondary },
+  catRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: spacing.md },
+  catItem: { paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.pill, borderWidth: 1, borderColor: c.border },
+  catItemActive: { borderColor: c.primary, backgroundColor: c.primarySoftBg },
+  amountRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md },
+  yuan: { fontSize: fontSize.base, color: c.text, marginRight: spacing.sm },
+  amountInput: { flex: 1, backgroundColor: c.card, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.base, color: c.text, borderWidth: 1, borderColor: c.border },
+  freqRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
+  freqItem: { flex: 1, paddingVertical: 6, borderRadius: radius.sm, alignItems: 'center', backgroundColor: c.border },
+  freqActive: { backgroundColor: c.primary },
+  freqText: { fontSize: fontSize.sm, fontWeight: '500', color: c.textSecondary },
   freqTextActive: { color: '#fff' },
-  addBtn: { backgroundColor: '#6366f1', paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
-  addBtnText: { color: '#fff', fontSize: 14, fontWeight: '500' },
-  empty: { color: c.textSecondary, fontSize: 14, textAlign: 'center', paddingVertical: 12 },
+  addBtn: { backgroundColor: c.primary, paddingVertical: spacing.sm, borderRadius: radius.sm, alignItems: 'center' },
+  addBtnText: { color: '#fff', fontSize: fontSize.base, fontWeight: '500' },
+  empty: { color: c.textSecondary, fontSize: fontSize.base, textAlign: 'center', paddingVertical: spacing.md },
   item: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.subtle },
-  iconWrap: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
-  syncBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, marginTop: 8, borderRadius: 8, backgroundColor: c.inputBg },
-  syncText: { color: '#6366f1', fontSize: 13, fontWeight: '500', marginLeft: 6 },
+  iconWrap: { width: 32, height: 32, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm },
+  syncBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.sm, marginTop: spacing.sm, borderRadius: radius.sm, backgroundColor: c.inputBg },
+  syncText: { color: c.primary, fontSize: fontSize.md, fontWeight: '500', marginLeft: 6 },
 });

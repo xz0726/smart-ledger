@@ -9,23 +9,24 @@ import { getCategories, getCustomRules, addCategory, getCategoryDataCounts, dele
 import { useCategoryStore } from '../stores/categoryStore';
 import CategoryKeywordsModal from './CategoryKeywordsModal';
 import CategoryDeleteModal from './CategoryDeleteModal';
+import { spacing, radius, fontSize } from '../theme/spacing';
 
 const EMOJI_OPTIONS = ['🍔','🚇','🛒','🎮','🏠','💊','📚','💬','💰','✏️','🎁','🐱','🎵','✈️','💻','📱','🚗','⚽','🧘','🎂'];
 const COLOR_OPTIONS = ['#f97316','#3b82f6','#ec4899','#8b5cf6','#14b8a6','#ef4444','#06b6d4','#6366f1','#22c55e','#64748b','#f59e0b','#84cc16','#a855f7','#e11d48','#0891b2'];
 
 export default function CategoryManager() {
+  const c = useThemeColors();
   const [categories, setCategories] = useState<Category[]>([]);
   const [rules, setRules] = useState<CustomRule[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState('');
   const [newIcon, setNewIcon] = useState('📦');
   const [customIcon, setCustomIcon] = useState('');
-  const [newColor, setNewColor] = useState('#6366f1');
+  const [newColor, setNewColor] = useState(c.primary);
   const [newType, setNewType] = useState<'expense' | 'income'>('expense');
   const [selectedCat, setSelectedCat] = useState<Category | null>(null);
   const [deleting, setDeleting] = useState<{ cat: Category; counts: { expenses: number; budgets: number; fixedItems: number } } | null>(null);
   const revision = useCategoryStore(s => s.revision);
-  const c = useThemeColors();
   const s = useMemo(() => createStyles(c), [c]);
 
   const loadCategories = useCallback(async () => {
@@ -83,7 +84,7 @@ export default function CategoryManager() {
       <View style={s.header}>
         <CardTitle icon={Tags} text="分类管理" />
         <TouchableOpacity onPress={() => setShowAdd(!showAdd)}>
-          <Plus size={20} color={showAdd ? '#ef4444' : '#6366f1'} />
+          <Plus size={20} color={showAdd ? c.danger : c.primary} />
         </TouchableOpacity>
       </View>
 
@@ -94,17 +95,17 @@ export default function CategoryManager() {
             placeholder="输入自定义图标/表情（如 🍕 / 🐕）" placeholderTextColor={c.hint} />
           <View style={s.typeRow}>
             <TouchableOpacity onPress={() => setNewType('expense')}
-              style={[s.typeBtn, newType === 'expense' && { backgroundColor: '#6366f1' }]}>
+              style={[s.typeBtn, newType === 'expense' && { backgroundColor: c.primary }]}>
               <Text style={[s.typeText, newType === 'expense' && { color: '#fff' }]}>支出</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setNewType('income')}
-              style={[s.typeBtn, newType === 'income' && { backgroundColor: '#22c55e' }]}>
+              style={[s.typeBtn, newType === 'income' && { backgroundColor: c.success }]}>
               <Text style={[s.typeText, newType === 'income' && { color: '#fff' }]}>收入</Text>
             </TouchableOpacity>
           </View>
           <Text style={s.label}>图标（当前：{customIcon.trim() || newIcon}）</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-            <View style={{ flexDirection: 'row', gap: 4 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.sm }}>
+            <View style={{ flexDirection: 'row', gap: spacing.xs }}>
               {EMOJI_OPTIONS.map(emoji => (
                 <TouchableOpacity key={emoji} onPress={() => { setNewIcon(emoji); setCustomIcon(''); }}
                   style={[s.emojiItem, newIcon === emoji && !customIcon && s.emojiActive]}>
@@ -145,7 +146,7 @@ export default function CategoryManager() {
             </TouchableOpacity>
             {cat.is_default === 0 && (
               <TouchableOpacity onPress={() => handleDelete(cat)} style={s.deleteBtn}>
-                <Trash2 size={16} color="#ef4444" />
+                <Trash2 size={16} color={c.danger} />
               </TouchableOpacity>
             )}
           </View>
@@ -166,28 +167,28 @@ export default function CategoryManager() {
 }
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
-  card: { backgroundColor: c.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16, ...cardShadow },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  title: { fontSize: 14, fontWeight: '600', color: c.text },
-  addPanel: { backgroundColor: c.inputBg, borderRadius: 8, padding: 12, marginBottom: 12 },
-  nameInput: { backgroundColor: c.card, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, color: c.text, borderWidth: 1, borderColor: c.border, marginBottom: 8 },
-  typeRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  typeBtn: { flex: 1, paddingVertical: 6, borderRadius: 8, alignItems: 'center', backgroundColor: c.border },
-  typeText: { fontSize: 12, fontWeight: '500', color: c.textSecondary },
-  label: { fontSize: 12, color: c.textSecondary, marginBottom: 4 },
-  emojiItem: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: c.card },
-  emojiActive: { backgroundColor: c.primarySoftBg, borderWidth: 1, borderColor: '#6366f1' },
-  colorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
+  card: { backgroundColor: c.card, marginHorizontal: spacing.lg, marginTop: spacing.lg, borderRadius: radius.md, padding: spacing.lg, ...cardShadow },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
+  title: { fontSize: fontSize.base, fontWeight: '600', color: c.text },
+  addPanel: { backgroundColor: c.inputBg, borderRadius: radius.sm, padding: spacing.md, marginBottom: spacing.md },
+  nameInput: { backgroundColor: c.card, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.base, color: c.text, borderWidth: 1, borderColor: c.border, marginBottom: spacing.sm },
+  typeRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
+  typeBtn: { flex: 1, paddingVertical: 6, borderRadius: radius.sm, alignItems: 'center', backgroundColor: c.border },
+  typeText: { fontSize: fontSize.sm, fontWeight: '500', color: c.textSecondary },
+  label: { fontSize: fontSize.sm, color: c.textSecondary, marginBottom: spacing.xs },
+  emojiItem: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: radius.sm, backgroundColor: c.card },
+  emojiActive: { backgroundColor: c.primarySoftBg, borderWidth: 1, borderColor: c.primary },
+  colorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: spacing.md },
   colorDot: { width: 28, height: 28, borderRadius: 14 },
   colorActive: { borderWidth: 2, borderColor: c.text, transform: [{ scale: 1.1 }] },
-  addBtn: { backgroundColor: '#6366f1', paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
-  addBtnText: { color: '#fff', fontSize: 14, fontWeight: '500' },
-  catItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.subtle },
+  addBtn: { backgroundColor: c.primary, paddingVertical: spacing.sm, borderRadius: radius.sm, alignItems: 'center' },
+  addBtnText: { color: '#fff', fontSize: fontSize.base, fontWeight: '500' },
+  catItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: c.subtle },
   catInfo: { flex: 1, flexDirection: 'row', alignItems: 'center' },
-  catIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
+  catIcon: { width: 32, height: 32, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm },
   catIconText: { fontSize: 15 },
-  catName: { fontSize: 14, color: c.text },
-  catSub: { fontSize: 12, color: c.textSecondary },
-  count: { fontSize: 12, color: '#6366f1', marginLeft: 4 },
-  deleteBtn: { padding: 4, marginLeft: 8 },
+  catName: { fontSize: fontSize.base, color: c.text },
+  catSub: { fontSize: fontSize.sm, color: c.textSecondary },
+  count: { fontSize: fontSize.sm, color: c.primary, marginLeft: spacing.xs },
+  deleteBtn: { padding: spacing.xs, marginLeft: spacing.sm },
 });

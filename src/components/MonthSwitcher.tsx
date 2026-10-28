@@ -3,6 +3,7 @@ import { View, Text, Modal, TouchableOpacity, ScrollView, Pressable, StyleSheet 
 import { ChartColumn, ChevronLeft, ChevronRight, X } from 'lucide-react-native';
 import { useThemeColors, type ThemeColors } from '../theme';
 import { formatMonth, getCurrentMonth, getNextMonth, getPreviousMonth, getRecentMonths, isCurrentMonth } from '../utils/format';
+import { spacing, radius, fontSize } from '../theme/spacing';
 
 interface Props {
   month: string;
@@ -74,22 +75,22 @@ export default function MonthSwitcher({ month, onChange }: Props) {
 }
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 },
-  titleBtn: { flex: 1, alignItems: 'center', paddingVertical: 4 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md },
+  titleBtn: { flex: 1, alignItems: 'center', paddingVertical: spacing.xs },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   title: { fontSize: 18, fontWeight: '600', color: c.text },
-  backBtn: { alignSelf: 'center', marginBottom: 8, backgroundColor: c.primarySoftBg, paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20 },
-  backBtnText: { fontSize: 13, color: c.primaryText, fontWeight: '500' },
+  backBtn: { alignSelf: 'center', marginBottom: spacing.sm, backgroundColor: c.primarySoftBg, paddingHorizontal: spacing.lg, paddingVertical: 6, borderRadius: radius.pill },
+  backBtnText: { fontSize: fontSize.md, color: c.primaryText, fontWeight: '500' },
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
   modal: { backgroundColor: c.card, borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: '60%' },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.subtle },
-  modalTitle: { fontSize: 16, fontWeight: '600', color: c.text },
-  body: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 32 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: c.subtle },
+  modalTitle: { fontSize: fontSize.lg, fontWeight: '600', color: c.text },
+  body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   monthItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', width: '31%', paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: c.border, backgroundColor: c.card },
-  monthItemActive: { borderColor: '#6366f1', backgroundColor: c.primarySoftBg },
-  monthText: { fontSize: 14, color: c.text },
+  monthItemActive: { borderColor: c.primary, backgroundColor: c.primarySoftBg },
+  monthText: { fontSize: fontSize.base, color: c.text },
   monthTextActive: { color: c.primaryText, fontWeight: '600' },
-  nowTag: { fontSize: 10, color: c.hint, marginLeft: 4 },
+  nowTag: { fontSize: 10, color: c.hint, marginLeft: spacing.xs },
   nowTagActive: { color: c.primaryText },
 });

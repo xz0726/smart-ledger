@@ -7,6 +7,7 @@ import { cardShadow, useThemeColors, type ThemeColors } from '../theme';
 import type { Category, QuickItemWithCategory } from '../types';
 import { getCategories, getQuickItemsWithCategory, addQuickItem, deleteQuickItem } from '../services/db';
 import { useCategoryStore } from '../stores/categoryStore';
+import { spacing, radius, fontSize } from '../theme/spacing';
 
 /**
  * 快捷记账管理：固定金额、点一下记一笔（停车 10 元、奶茶 15 元等）。
@@ -59,7 +60,7 @@ export default function QuickItemsManager() {
       <View style={s.header}>
         <CardTitle icon={Zap} text="快捷记账" />
         <TouchableOpacity onPress={() => setShowAdd(!showAdd)}>
-          <Plus size={20} color={showAdd ? '#ef4444' : '#6366f1'} />
+          <Plus size={20} color={showAdd ? c.danger : c.primary} />
         </TouchableOpacity>
       </View>
       <Text style={s.hint}>固定金额、点一下记一笔，如停车 10 元 / 奶茶 15 元</Text>
@@ -70,11 +71,11 @@ export default function QuickItemsManager() {
           <TextInput style={s.input} value={name} onChangeText={setName} placeholder="如：停车 / 奶茶" placeholderTextColor={c.hint} />
           <Text style={s.label}>分类</Text>
           <View style={s.catRow}>
-            {categories.length === 0 ? <Text style={{ fontSize: 12, color: c.hint }}>暂无支出分类</Text> :
+            {categories.length === 0 ? <Text style={{ fontSize: fontSize.sm, color: c.hint }}>暂无支出分类</Text> :
               categories.map(cat => (
                 <TouchableOpacity key={cat.id} onPress={() => setSelectedCategory(cat.id)}
                   style={[s.catItem, selectedCategory === cat.id && s.catItemActive]}>
-                  <Text style={{ fontSize: 12, color: c.text }}>{cat.icon} {cat.name}</Text>
+                  <Text style={{ fontSize: fontSize.sm, color: c.text }}>{cat.icon} {cat.name}</Text>
                 </TouchableOpacity>
               ))}
           </View>
@@ -99,10 +100,10 @@ export default function QuickItemsManager() {
               <Text style={{ fontSize: 15 }}>{item.category_icon || '📦'}</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, color: c.text }}>{item.name}</Text>
-              <Text style={{ fontSize: 12, color: c.textSecondary }}>{item.category_name || '未知分类'}</Text>
+              <Text style={{ fontSize: fontSize.base, color: c.text }}>{item.name}</Text>
+              <Text style={{ fontSize: fontSize.sm, color: c.textSecondary }}>{item.category_name || '未知分类'}</Text>
             </View>
-            <Text style={{ fontSize: 14, fontWeight: '600', color: '#6366f1', marginRight: 8 }}>¥{item.amount.toFixed(2)}</Text>
+            <Text style={{ fontSize: fontSize.base, fontWeight: '600', color: c.primary, marginRight: spacing.sm }}>¥{item.amount.toFixed(2)}</Text>
             <TouchableOpacity onPress={() => handleDelete(item)}>
               <Trash2 size={14} color={c.hint} />
             </TouchableOpacity>
@@ -114,22 +115,22 @@ export default function QuickItemsManager() {
 }
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
-  card: { backgroundColor: c.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16, ...cardShadow },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  title: { fontSize: 14, fontWeight: '600', color: c.text },
-  hint: { fontSize: 12, color: c.textSecondary, marginBottom: 12 },
-  addPanel: { backgroundColor: c.inputBg, borderRadius: 8, padding: 12, marginBottom: 12 },
-  label: { fontSize: 12, color: c.textSecondary, marginBottom: 4 },
-  input: { backgroundColor: c.card, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, color: c.text, borderWidth: 1, borderColor: c.border, marginBottom: 12 },
-  catRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
-  catItem: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: c.border },
-  catItemActive: { borderColor: '#6366f1', backgroundColor: c.primarySoftBg },
-  amountRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  yuan: { fontSize: 14, color: c.text, marginRight: 8 },
-  amountInput: { flex: 1, backgroundColor: c.card, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, color: c.text, borderWidth: 1, borderColor: c.border },
-  addBtn: { backgroundColor: '#6366f1', paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
-  addBtnText: { color: '#fff', fontSize: 14, fontWeight: '500' },
-  empty: { color: c.textSecondary, fontSize: 14, textAlign: 'center', paddingVertical: 12 },
+  card: { backgroundColor: c.card, marginHorizontal: spacing.lg, marginTop: spacing.lg, borderRadius: radius.md, padding: spacing.lg, ...cardShadow },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs },
+  title: { fontSize: fontSize.base, fontWeight: '600', color: c.text },
+  hint: { fontSize: fontSize.sm, color: c.textSecondary, marginBottom: spacing.md },
+  addPanel: { backgroundColor: c.inputBg, borderRadius: radius.sm, padding: spacing.md, marginBottom: spacing.md },
+  label: { fontSize: fontSize.sm, color: c.textSecondary, marginBottom: spacing.xs },
+  input: { backgroundColor: c.card, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.base, color: c.text, borderWidth: 1, borderColor: c.border, marginBottom: spacing.md },
+  catRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: spacing.md },
+  catItem: { paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.pill, borderWidth: 1, borderColor: c.border },
+  catItemActive: { borderColor: c.primary, backgroundColor: c.primarySoftBg },
+  amountRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md },
+  yuan: { fontSize: fontSize.base, color: c.text, marginRight: spacing.sm },
+  amountInput: { flex: 1, backgroundColor: c.card, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.base, color: c.text, borderWidth: 1, borderColor: c.border },
+  addBtn: { backgroundColor: c.primary, paddingVertical: spacing.sm, borderRadius: radius.sm, alignItems: 'center' },
+  addBtnText: { color: '#fff', fontSize: fontSize.base, fontWeight: '500' },
+  empty: { color: c.textSecondary, fontSize: fontSize.base, textAlign: 'center', paddingVertical: spacing.md },
   item: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.subtle },
-  iconWrap: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
+  iconWrap: { width: 32, height: 32, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm },
 });

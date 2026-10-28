@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { useThemeColors } from '../theme';
+import { spacing, radius, fontSize } from '../theme/spacing';
 
 interface Props {
   icon: LucideIcon;
@@ -24,6 +25,6 @@ export default function CardTitle({ icon: Icon, text, style }: Props) {
 }
 
 const s = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
-  text: { fontSize: 14, fontWeight: '600' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.md },
+  text: { fontSize: fontSize.base, fontWeight: '600' },
 });
