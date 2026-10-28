@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useThemeColors, type ThemeColors } from '../theme';
+import { cardShadow, useThemeColors, type ThemeColors } from '../theme';
 import type { CategoryStats } from '../types';
 import { formatShortAmount } from '../utils/format';
 import CategoryDonutChart from './charts/CategoryDonutChart';
@@ -62,7 +62,9 @@ export default function CategoryBreakdownCard({ data }: Props) {
           {list.map(d => (
             <View key={d.category_id} style={s.catRow}>
               <View style={s.catLeft}>
-                <Text>{d.category_icon}</Text>
+                <View style={[s.iconChip, { backgroundColor: d.category_color + '20' }]}>
+                  <Text style={s.iconChipText}>{d.category_icon}</Text>
+                </View>
                 <Text style={s.catName}>{d.category_name}</Text>
               </View>
               <View style={s.catRight}>
@@ -83,19 +85,21 @@ export default function CategoryBreakdownCard({ data }: Props) {
 }
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
-  card: { backgroundColor: c.card, marginHorizontal: 16, borderRadius: 12, padding: 16, marginBottom: 16, elevation: 1 },
+  card: { backgroundColor: c.card, marginHorizontal: 16, borderRadius: 12, padding: 16, marginBottom: 16, ...cardShadow },
   cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   cardLeft: { flexDirection: 'row', alignItems: 'baseline' },
   cardTitle: { fontSize: 14, fontWeight: '600', color: c.text, marginRight: 8 },
   total: { fontSize: 12, color: c.textSecondary },
   seg: { flexDirection: 'row', backgroundColor: c.subtle, borderRadius: 8, padding: 2 },
   segItem: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 6 },
-  segItemActive: { backgroundColor: c.card, elevation: 1 },
+  segItemActive: { backgroundColor: c.card, ...cardShadow },
   segText: { fontSize: 12, color: c.textSecondary },
   segTextActive: { color: '#6366f1', fontWeight: '600' },
   empty: { color: c.textSecondary, textAlign: 'center', paddingVertical: 24 },
   catRow: { marginBottom: 10 },
   catLeft: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+  iconChip: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  iconChipText: { fontSize: 13 },
   catName: { fontSize: 13, color: c.text, marginLeft: 6 },
   catRight: { flexDirection: 'row', alignItems: 'center' },
   bar: { flex: 1, height: 8, backgroundColor: c.subtle, borderRadius: 4, overflow: 'hidden', marginRight: 8 },

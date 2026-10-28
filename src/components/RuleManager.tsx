@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Alert, StyleSheet } from 'react-native';
-import { Trash2 } from 'lucide-react-native';
+import { Trash2, Puzzle } from 'lucide-react-native';
+import CardTitle from './CardTitle';
 import { useFocusEffect } from 'expo-router';
-import { useThemeColors, type ThemeColors } from '../theme';
+import { cardShadow, useThemeColors, type ThemeColors } from '../theme';
 import type { Category, CustomRule } from '../types';
 import { getCategories, getCustomRules, deleteCustomRule } from '../services/db';
 import { useCategoryStore } from '../stores/categoryStore';
@@ -60,7 +61,7 @@ export default function RuleManager() {
   return (
     <View style={s.card}>
       <View style={s.header}>
-        <Text style={s.title}>🧩 自定义规则</Text>
+        <CardTitle icon={Puzzle} text="自定义规则" />
       </View>
       <Text style={s.hint}>关键词管理请到「分类管理」，点击分类查看/添加</Text>
 
@@ -86,7 +87,7 @@ export default function RuleManager() {
 }
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
-  card: { backgroundColor: c.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16, elevation: 1 },
+  card: { backgroundColor: c.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16, ...cardShadow },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   title: { fontSize: 14, fontWeight: '600', color: c.text },
   hint: { fontSize: 12, color: c.textSecondary, marginBottom: 12 },

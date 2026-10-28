@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, TextInput, Alert, StyleSheet } from 'react-native';
-import { Plus, Trash2 } from 'lucide-react-native';
+import { Plus, Trash2, Zap } from 'lucide-react-native';
+import CardTitle from './CardTitle';
 import { useFocusEffect } from 'expo-router';
-import { useThemeColors, type ThemeColors } from '../theme';
+import { cardShadow, useThemeColors, type ThemeColors } from '../theme';
 import type { Category, QuickItemWithCategory } from '../types';
 import { getCategories, getQuickItemsWithCategory, addQuickItem, deleteQuickItem } from '../services/db';
 import { useCategoryStore } from '../stores/categoryStore';
@@ -56,7 +57,7 @@ export default function QuickItemsManager() {
   return (
     <View style={s.card}>
       <View style={s.header}>
-        <Text style={s.title}>⚡ 快捷记账</Text>
+        <CardTitle icon={Zap} text="快捷记账" />
         <TouchableOpacity onPress={() => setShowAdd(!showAdd)}>
           <Plus size={20} color={showAdd ? '#ef4444' : '#6366f1'} />
         </TouchableOpacity>
@@ -95,7 +96,7 @@ export default function QuickItemsManager() {
         <View key={item.id} style={s.item}>
           <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
             <View style={[s.iconWrap, { backgroundColor: (item.category_color || '#64748b') + '20' }]}>
-              <Text>{item.category_icon || '📦'}</Text>
+              <Text style={{ fontSize: 15 }}>{item.category_icon || '📦'}</Text>
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 14, color: c.text }}>{item.name}</Text>
@@ -113,7 +114,7 @@ export default function QuickItemsManager() {
 }
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
-  card: { backgroundColor: c.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16, elevation: 1 },
+  card: { backgroundColor: c.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16, ...cardShadow },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   title: { fontSize: 14, fontWeight: '600', color: c.text },
   hint: { fontSize: 12, color: c.textSecondary, marginBottom: 12 },

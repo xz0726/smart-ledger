@@ -1,7 +1,9 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { useThemeColors, type ThemeColors } from '../theme';
+import { Zap } from 'lucide-react-native';
+import CardTitle from './CardTitle';
+import { cardShadow, useThemeColors, type ThemeColors } from '../theme';
 import type { QuickItemWithCategory } from '../types';
 import { getQuickItemsWithCategory } from '../services/db';
 import { useCategoryStore } from '../stores/categoryStore';
@@ -34,7 +36,7 @@ export default function QuickAddBar({ onQuickAdd }: Props) {
 
   return (
     <View style={s.card}>
-      <Text style={s.cardTitle}>⚡ 快捷记账</Text>
+      <CardTitle icon={Zap} text="快捷记账" />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.row}>
         {items.map(item => (
           <TouchableOpacity key={item.id} onPress={() => onQuickAdd(item)} style={s.btn}>
@@ -50,8 +52,7 @@ export default function QuickAddBar({ onQuickAdd }: Props) {
 }
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
-  card: { backgroundColor: c.card, marginHorizontal: 16, borderRadius: 12, padding: 16, marginBottom: 16, elevation: 1 },
-  cardTitle: { fontSize: 14, fontWeight: '600', color: c.text, marginBottom: 12 },
+  card: { backgroundColor: c.card, marginHorizontal: 16, borderRadius: 12, padding: 16, marginBottom: 16, ...cardShadow },
   row: { flexDirection: 'row', gap: 8 },
   btn: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.primarySoftBg, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8 },
   btnIcon: { fontSize: 14, marginRight: 4 },

@@ -3,8 +3,9 @@ import { ScrollView, View, Text, TouchableOpacity, Alert, StyleSheet } from 'rea
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import * as Linking from 'expo-linking';
-import { Copy, Users } from 'lucide-react-native';
-import { useThemeColors, type ThemeColors } from '../../src/theme';
+import { Copy, Users, Megaphone, MessagesSquare } from 'lucide-react-native';
+import CardTitle from '../../src/components/CardTitle';
+import { cardShadow, useThemeColors, type ThemeColors } from '../../src/theme';
 import { SUPPORT, mqqGroupUrl } from '../../src/constants/support';
 
 const copyText = async (text: string, label: string) => {
@@ -37,7 +38,7 @@ export default function Contact() {
     <ScrollView style={st.safe}>
       {/* 群简介 */}
       <View style={st.card}>
-        <Text style={st.cardTitle}>📣 群简介</Text>
+        <CardTitle icon={Megaphone} text="群简介" />
         <Text style={st.desc}>
           {SUPPORT.qqGroupName}（其实只有作者一个人）——答疑解惑、功能建议、版本动态都在这。进群后请先看群公告，遵守群规；反馈问题请尽量带上版本号和操作步骤，方便作者更快定位。
         </Text>
@@ -45,7 +46,7 @@ export default function Contact() {
 
       {/* QQ 交流群 */}
       <View style={st.card}>
-        <Text style={st.cardTitle}>💬 QQ 交流群</Text>
+        <CardTitle icon={MessagesSquare} text="QQ 交流群" />
         <Text style={st.groupName}>{SUPPORT.qqGroupName}</Text>
         <Text style={st.groupId}>群号：{SUPPORT.qqGroupId}</Text>
         <Text style={st.hint}>进群请备注：皇帝驾到</Text>
@@ -68,7 +69,7 @@ export default function Contact() {
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: c.background },
-  card: { backgroundColor: c.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16, elevation: 1 },
+  card: { backgroundColor: c.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16, ...cardShadow },
   cardTitle: { fontSize: 14, fontWeight: '600', color: c.text, marginBottom: 12 },
   desc: { fontSize: 14, color: c.textSecondary, lineHeight: 22 },
   groupName: { fontSize: 15, fontWeight: '600', color: c.text },

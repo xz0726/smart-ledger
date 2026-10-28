@@ -5,8 +5,9 @@ import {
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import Constants from 'expo-constants';
-import { Send } from 'lucide-react-native';
-import { useThemeColors, type ThemeColors } from '../../src/theme';
+import { Send, Bookmark, PenLine, Mail } from 'lucide-react-native';
+import CardTitle from '../../src/components/CardTitle';
+import { cardShadow, useThemeColors, type ThemeColors } from '../../src/theme';
 import { SUPPORT } from '../../src/constants/support';
 import { composeMail } from '../../src/services/nativeActions';
 
@@ -64,7 +65,7 @@ export default function Feedback() {
       <ScrollView style={st.flex1} keyboardShouldPersistTaps="handled" contentContainerStyle={st.content}>
         {/* 反馈类型 */}
         <View style={st.card}>
-          <Text style={st.cardTitle}>📌 反馈类型</Text>
+          <CardTitle icon={Bookmark} text="反馈类型" />
           <View style={st.chipRow}>
             {FEEDBACK_TYPES.map(t => (
               <TouchableOpacity
@@ -79,7 +80,7 @@ export default function Feedback() {
 
         {/* 反馈内容 */}
         <View style={st.card}>
-          <Text style={st.cardTitle}>✏️ 反馈内容</Text>
+          <CardTitle icon={PenLine} text="反馈内容" />
           <TextInput
             style={st.textarea}
             value={content}
@@ -95,7 +96,7 @@ export default function Feedback() {
 
         {/* 联系方式 */}
         <View style={st.card}>
-          <Text style={st.cardTitle}>📮 联系方式（可选）</Text>
+          <CardTitle icon={Mail} text="联系方式（可选）" />
           <TextInput
             style={st.input}
             value={contact}
@@ -123,7 +124,7 @@ export default function Feedback() {
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   flex1: { flex: 1 },
   content: { paddingBottom: 24 },
-  card: { backgroundColor: c.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16, elevation: 1 },
+  card: { backgroundColor: c.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16, ...cardShadow },
   cardTitle: { fontSize: 14, fontWeight: '600', color: c.text, marginBottom: 12 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {

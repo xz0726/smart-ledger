@@ -78,6 +78,18 @@ export const darkColors: ThemeColors = {
 };
 
 /**
+ * 卡片统一阴影：iOS/web 走 shadow*（elevation 在 web 不生效，截图/网页端会显得扁平），
+ * Android 走 elevation。样式工厂里以 `...cardShadow` 展开。
+ */
+export const cardShadow = {
+  shadowColor: '#0f172a',
+  shadowOpacity: 0.05,
+  shadowRadius: 8,
+  shadowOffset: { width: 0, height: 2 },
+  elevation: 1,
+};
+
+/**
  * 解析实际主题：preference 为 light/dark 时固定；system 跟随系统
  * （系统主题不可判定时（useColorScheme 返回 null）安全回落浅色）
  */

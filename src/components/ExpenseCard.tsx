@@ -35,7 +35,7 @@ export default function ExpenseCard({ expense, onPress, onLongPress }: Props) {
 }
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
-  card: { backgroundColor: c.card, marginHorizontal: 16, marginVertical: 2, paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 8 },
+  card: { backgroundColor: c.card, marginHorizontal: 16, marginVertical: 2, paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 12 },
   left: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   icon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   iconText: { fontSize: 18 },

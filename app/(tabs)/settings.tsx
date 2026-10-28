@@ -1,12 +1,13 @@
 import { useMemo, useState, useEffect } from 'react';
 import { ScrollView, View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Keyboard, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Save, Wifi, Download, Upload, Database, MessageCircle, MessageSquareText, Coffee } from 'lucide-react-native';
+import { Save, Wifi, Download, Upload, Database, MessageCircle, MessageSquareText, Coffee, Palette, Bot, Folder, Smartphone } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useSettingsStore } from '../../src/stores/settingsStore';
-import { useThemeColors, type ThemeColors, type ThemePreference } from '../../src/theme';
+import { cardShadow, useThemeColors, type ThemeColors, type ThemePreference } from '../../src/theme';
 import { testConnection } from '../../src/services/ai';
 import CategoryManager from '../../src/components/CategoryManager';
+import CardTitle from '../../src/components/CardTitle';
 import BudgetManager from '../../src/components/BudgetManager';
 import FixedItemsManager from '../../src/components/FixedItemsManager';
 import QuickItemsManager from '../../src/components/QuickItemsManager';
@@ -114,7 +115,7 @@ export default function Settings() {
         <ScrollView style={st.flex1} keyboardShouldPersistTaps="handled">
           {/* 主题：跟随系统 / 浅色 / 深色 */}
           <View style={st.card}>
-            <Text style={st.cardTitle}>🎨 主题</Text>
+            <CardTitle icon={Palette} text="主题" />
             <View style={st.seg}>
               {THEME_OPTIONS.map(o => (
                 <TouchableOpacity key={o.key} onPress={() => setThemePreference(o.key)}
@@ -127,7 +128,7 @@ export default function Settings() {
 
           {/* AI 配置 */}
           <View style={st.card}>
-            <Text style={st.cardTitle}>🤖 AI 配置</Text>
+            <CardTitle icon={Bot} text="AI 配置" />
             <Text style={{ fontSize: 12, color: c.textSecondary, marginBottom: 12 }}>支持任意 OpenAI 兼容 API（DeepSeek / OpenAI / 通义千问）。留空则不启用 AI 解析，仅使用本地规则引擎。</Text>
             <Text style={st.label}>API 地址</Text>
             <TextInput style={st.input} value={apiUrl} onChangeText={setApiUrl} placeholder="https://api.deepseek.com/v1" placeholderTextColor={c.hint} autoCapitalize="none" autoCorrect={false} />
@@ -162,7 +163,7 @@ export default function Settings() {
 
           {/* 数据管理 */}
           <View style={st.card}>
-            <Text style={st.cardTitle}>📂 数据管理</Text>
+            <CardTitle icon={Folder} text="数据管理" />
             <TouchableOpacity style={st.menuItem} onPress={handleExportCSV}>
               <Upload size={18} color="#6366f1" /><Text style={st.menuText}>导出 CSV</Text><Text style={st.menuHint}>分享文件</Text>
             </TouchableOpacity>
@@ -180,7 +181,7 @@ export default function Settings() {
 
           {/* 关于 */}
           <View style={st.card}>
-            <Text style={st.cardTitle}>📱 关于</Text>
+            <CardTitle icon={Smartphone} text="关于" />
             <Text style={{ fontSize: 14, color: c.text }}>智记账</Text>
             <Text style={{ fontSize: 12, color: c.textSecondary, marginTop: 4 }}>版本 1.5.3</Text>
             <Text style={{ fontSize: 12, color: c.textSecondary, marginTop: 8 }}>智能记账，轻松管理每一笔消费。
@@ -211,8 +212,7 @@ export default function Settings() {
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: c.background },
   flex1: { flex: 1 },
-  card: { backgroundColor: c.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16, elevation: 1 },
-  cardTitle: { fontSize: 14, fontWeight: '600', color: c.text, marginBottom: 16 },
+  card: { backgroundColor: c.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16, ...cardShadow },
   seg: { flexDirection: 'row', backgroundColor: c.subtle, borderRadius: 8, padding: 2 },
   segItem: { flex: 1, paddingVertical: 6, borderRadius: 6, alignItems: 'center' },
   segItemActive: { backgroundColor: c.card },

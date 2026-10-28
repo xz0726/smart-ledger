@@ -2,9 +2,11 @@ import { useMemo, useState } from 'react';
 import {
   ScrollView, View, Text, TouchableOpacity, Modal, Pressable, Image, Alert, StyleSheet,
 } from 'react-native';
-import { useThemeColors, type ThemeColors } from '../../src/theme';
+import { cardShadow, useThemeColors, type ThemeColors } from '../../src/theme';
 import { QR_IMAGES, type QrKey } from '../../src/constants/support';
 import { shareAssetFile } from '../../src/services/nativeActions';
+import { Heart, QrCode } from 'lucide-react-native';
+import CardTitle from '../../src/components/CardTitle';
 
 // 把打包内置的收款码图落到本地缓存文件，再调起系统分享（分享面板可保存到相册/文件）
 const saveOrShareQr = async (key: QrKey) => {
@@ -25,7 +27,7 @@ export default function Donate() {
     <ScrollView style={st.safe} contentContainerStyle={st.content}>
       {/* 感谢文案 */}
       <View style={st.card}>
-        <Text style={st.cardTitle}>💝 感谢支持</Text>
+        <CardTitle icon={Heart} text="感谢支持" />
         <Text style={st.desc}>
           智记账是个人独立开发的作品。如果它帮你理清了每一笔账，欢迎投喂作者，1块钱也是对作者最大的鼓励！
         </Text>
@@ -34,7 +36,7 @@ export default function Donate() {
 
       {/* 微信收款码 */}
       <View style={st.card}>
-        <Text style={st.cardTitle}>💚 微信收款码</Text>
+        <CardTitle icon={QrCode} text="微信收款码" />
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={() => setPreview('wechat')}
@@ -48,7 +50,7 @@ export default function Donate() {
 
       {/* 支付宝收款码 */}
       <View style={st.card}>
-        <Text style={st.cardTitle}>💙 支付宝收款码</Text>
+        <CardTitle icon={QrCode} text="支付宝收款码" />
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={() => setPreview('alipay')}
@@ -84,7 +86,7 @@ export default function Donate() {
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: c.background },
   content: { paddingBottom: 24 },
-  card: { backgroundColor: c.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16, elevation: 1 },
+  card: { backgroundColor: c.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16, ...cardShadow },
   cardTitle: { fontSize: 14, fontWeight: '600', color: c.text, marginBottom: 12 },
   desc: { fontSize: 14, color: c.textSecondary, lineHeight: 22 },
   hint: { fontSize: 12, color: c.hint, marginTop: 8 },

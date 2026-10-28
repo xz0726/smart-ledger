@@ -2,7 +2,9 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { ScrollView, View, Text, RefreshControl, Animated, StyleSheet } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Repeat, Rewind, Target, TrendingUp } from 'lucide-react-native';
 import StatCard from '../../src/components/StatCard';
+import CardTitle from '../../src/components/CardTitle';
 import InputBar from '../../src/components/InputBar';
 import MonthSwitcher from '../../src/components/MonthSwitcher';
 import CategoryBreakdownCard from '../../src/components/CategoryBreakdownCard';
@@ -13,7 +15,7 @@ import { useStats } from '../../src/hooks/useStats';
 import { useExpenses } from '../../src/hooks/useExpenses';
 import { useBudget } from '../../src/hooks/useBudget';
 import { useMonthStore } from '../../src/stores/monthStore';
-import { useThemeColors, type ThemeColors } from '../../src/theme';
+import { cardShadow, useThemeColors, type ThemeColors } from '../../src/theme';
 import { formatAmount, formatMonth, getTodayDate, isCurrentMonth } from '../../src/utils/format';
 
 export default function Dashboard() {
@@ -84,7 +86,7 @@ export default function Dashboard() {
 
         {/* 每日支出趋势 */}
         <View style={s.card}>
-          <Text style={s.cardTitle}>📈 每日支出趋势</Text>
+          <CardTitle icon={TrendingUp} text="每日支出趋势" />
           <DailyTrendChart data={dailyTrend} month={month} />
         </View>
 
@@ -97,7 +99,7 @@ export default function Dashboard() {
         {/* 固定收支汇总 */}
         {fixedSummary && (fixedSummary.expenseTotal > 0 || fixedSummary.incomeTotal > 0) && (
           <View style={s.card}>
-            <Text style={s.cardTitle}>🔁 固定收支</Text>
+            <CardTitle icon={Repeat} text="固定收支" />
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={{ fontSize: 13, color: c.text }}>本月固定支出 ¥{fixedSummary.expenseTotal.toFixed(0)}</Text>
               <Text style={{ fontSize: 13, color: '#22c55e' }}>固定收入 ¥{fixedSummary.incomeTotal.toFixed(0)}</Text>
@@ -108,7 +110,7 @@ export default function Dashboard() {
         {/* 预算预警 */}
         {budgets.length > 0 && (
           <View style={s.card}>
-            <Text style={s.cardTitle}>🎯 预算预警</Text>
+            <CardTitle icon={Target} text="预算预警" />
             {budgets.map(b => {
               const pct = b.amount > 0 ? Math.min((b.spent / b.amount) * 100, 100) : 0;
               const isOver = b.spent > b.amount && b.amount > 0;
@@ -117,7 +119,9 @@ export default function Dashboard() {
                 <View key={b.id} style={s.budgetRow}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Text style={{ fontSize: 14, marginRight: 4 }}>{b.category_icon}</Text>
+                      <View style={{ width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: b.category_color + '20', marginRight: 6 }}>
+                        <Text style={{ fontSize: 13 }}>{b.category_icon}</Text>
+                      </View>
                       <Text style={{ fontSize: 14, color: c.text }}>{b.category_name}</Text>
                     </View>
                     <Text style={{ fontSize: 12, color: isOver ? '#ef4444' : isWarn ? '#f59e0b' : c.textSecondary }}>
@@ -139,7 +143,8 @@ export default function Dashboard() {
       {/* 查看历史月时提醒：新记账默认记入今天 */}
       {!isCurrentMonth(month) && (
         <View style={s.histHint}>
-          <Text style={s.histHintText}>⏪ 正在查看 {formatMonth(month)}，新记账默认记入今天</Text>
+          <Rewind size={12} color={c.histHintText} />
+          <Text style={s.histHintText}>正在查看 {formatMonth(month)}，新记账默认记入今天</Text>
         </View>
       )}
       <InputBar onAddExpense={handleAddExpense} />
@@ -158,11 +163,11 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: c.background },
   flex1: { flex: 1 },
   statsRow: { flexDirection: 'row', paddingHorizontal: 12, marginBottom: 16 },
-  card: { backgroundColor: c.card, marginHorizontal: 16, borderRadius: 12, padding: 16, marginBottom: 16, elevation: 1 },
-  cardTitle: { fontSize: 14, fontWeight: '600', color: c.text, marginBottom: 12 },
+  card: { backgroundColor: c.card, marginHorizontal: 16, borderRadius: 12, padding: 16, marginBottom: 16, ...cardShadow },
   budgetRow: { marginBottom: 12 },
-  histHint: { backgroundColor: c.histHintBg, paddingHorizontal: 16, paddingVertical: 6 },
+  histHint: { backgroundColor: c.histHintBg, paddingHorizontal: 16, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
   histHintText: { fontSize: 12, color: c.histHintText, textAlign: 'center' },
-  toast: { position: 'absolute', bottom: 72, alignSelf: 'center', backgroundColor: 'rgba(30,41,59,0.92)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, elevation: 3 },
-  toastText: { fontSize: 13, color: '#fff', fontWeight: '500' },
+  // 反色 toast：浅色下深底白字、深色下浅底深字，两种主题都清晰
+  toast: { position: 'absolute', bottom: 72, alignSelf: 'center', backgroundColor: c.text, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, elevation: 3, shadowColor: '#0f172a', shadowOpacity: 0.18, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
+  toastText: { fontSize: 13, color: c.background, fontWeight: '500' },
 });

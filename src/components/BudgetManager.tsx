@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, TextInput, Alert, StyleSheet } from 'react-native';
-import { Plus, Trash2 } from 'lucide-react-native';
+import { Plus, Trash2, Target } from 'lucide-react-native';
+import CardTitle from './CardTitle';
 import { useFocusEffect } from 'expo-router';
-import { useThemeColors, type ThemeColors } from '../theme';
+import { cardShadow, useThemeColors, type ThemeColors } from '../theme';
 import type { Category, BudgetWithCategory } from '../types';
 import { getCategories, getBudgets, setBudget, deleteBudget } from '../services/db';
 import { getCurrentMonth } from '../utils/format';
@@ -57,7 +58,7 @@ export default function BudgetManager() {
   return (
     <View style={s.card}>
       <View style={s.header}>
-        <Text style={s.title}>🎯 预算管理</Text>
+        <CardTitle icon={Target} text="预算管理" />
         <TouchableOpacity onPress={() => setShowAdd(!showAdd)}>
           <Plus size={20} color={showAdd ? '#ef4444' : '#6366f1'} />
         </TouchableOpacity>
@@ -104,7 +105,9 @@ export default function BudgetManager() {
           <View key={b.id} style={s.budgetItem}>
             <View style={s.budgetTop}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ fontSize: 14, marginRight: 4 }}>{b.category_icon}</Text>
+                <View style={{ width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: b.category_color + '20', marginRight: 6 }}>
+                  <Text style={{ fontSize: 13 }}>{b.category_icon}</Text>
+                </View>
                 <Text style={{ fontSize: 14, color: c.text }}>{b.category_name}</Text>
                 <Text style={{ fontSize: 12, color: c.textSecondary, marginLeft: 4 }}>
                   · {PERIODS.find(p => p.key === b.period)?.label || '月'}
@@ -132,7 +135,7 @@ export default function BudgetManager() {
 }
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
-  card: { backgroundColor: c.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16, elevation: 1 },
+  card: { backgroundColor: c.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16, ...cardShadow },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   title: { fontSize: 14, fontWeight: '600', color: c.text },
   addPanel: { backgroundColor: c.inputBg, borderRadius: 8, padding: 12, marginBottom: 12 },

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView, Pressable, StyleSheet } from 'react-native';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react-native';
+import { ChartColumn, ChevronLeft, ChevronRight, X } from 'lucide-react-native';
 import { useThemeColors, type ThemeColors } from '../theme';
 import { formatMonth, getCurrentMonth, getNextMonth, getPreviousMonth, getRecentMonths, isCurrentMonth } from '../utils/format';
 
@@ -24,7 +24,10 @@ export default function MonthSwitcher({ month, onChange }: Props) {
             <ChevronLeft size={22} color={c.textSecondary} />
           </TouchableOpacity>
           <TouchableOpacity style={s.titleBtn} onPress={() => setVisible(true)}>
-            <Text style={s.title}>📊 {formatMonth(month)}{isCurrentMonth(month) ? ' · 本月' : ''}</Text>
+            <View style={s.titleRow}>
+              <ChartColumn size={17} color={c.primaryText} strokeWidth={2.2} />
+              <Text style={s.title}>{formatMonth(month)}{isCurrentMonth(month) ? ' · 本月' : ''}</Text>
+            </View>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => onChange(getNextMonth(month))} disabled={isCurrentMonth(month)} hitSlop={8}>
             <ChevronRight size={22} color={isCurrentMonth(month) ? c.disabled : c.textSecondary} />
@@ -73,6 +76,7 @@ export default function MonthSwitcher({ month, onChange }: Props) {
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 },
   titleBtn: { flex: 1, alignItems: 'center', paddingVertical: 4 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   title: { fontSize: 18, fontWeight: '600', color: c.text },
   backBtn: { alignSelf: 'center', marginBottom: 8, backgroundColor: c.primarySoftBg, paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20 },
   backBtnText: { fontSize: 13, color: c.primaryText, fontWeight: '500' },

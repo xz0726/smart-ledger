@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, TextInput, Alert, ScrollView, StyleSheet } from 'react-native';
-import { Plus, Trash2, ChevronRight } from 'lucide-react-native';
+import { Plus, Trash2, ChevronRight, Tags } from 'lucide-react-native';
+import CardTitle from './CardTitle';
 import { useFocusEffect } from 'expo-router';
-import { useThemeColors, type ThemeColors } from '../theme';
+import { cardShadow, useThemeColors, type ThemeColors } from '../theme';
 import type { Category, CustomRule } from '../types';
 import { getCategories, getCustomRules, addCategory, getCategoryDataCounts, deleteCategoryWithData, deleteCustomRulesByCategory } from '../services/db';
 import { useCategoryStore } from '../stores/categoryStore';
@@ -80,7 +81,7 @@ export default function CategoryManager() {
   return (
     <View style={s.card}>
       <View style={s.header}>
-        <Text style={s.title}>🏷️ 分类管理</Text>
+        <CardTitle icon={Tags} text="分类管理" />
         <TouchableOpacity onPress={() => setShowAdd(!showAdd)}>
           <Plus size={20} color={showAdd ? '#ef4444' : '#6366f1'} />
         </TouchableOpacity>
@@ -131,7 +132,7 @@ export default function CategoryManager() {
           <View key={cat.id} style={s.catItem}>
             <TouchableOpacity onPress={() => setSelectedCat(cat)} style={s.catInfo}>
               <View style={[s.catIcon, { backgroundColor: cat.color + '20' }]}>
-                <Text>{cat.icon}</Text>
+                <Text style={s.catIconText}>{cat.icon}</Text>
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.catName}>{cat.name}</Text>
@@ -165,7 +166,7 @@ export default function CategoryManager() {
 }
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
-  card: { backgroundColor: c.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16, elevation: 1 },
+  card: { backgroundColor: c.card, marginHorizontal: 16, marginTop: 16, borderRadius: 12, padding: 16, ...cardShadow },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   title: { fontSize: 14, fontWeight: '600', color: c.text },
   addPanel: { backgroundColor: c.inputBg, borderRadius: 8, padding: 12, marginBottom: 12 },
@@ -184,6 +185,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   catItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.subtle },
   catInfo: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   catIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
+  catIconText: { fontSize: 15 },
   catName: { fontSize: 14, color: c.text },
   catSub: { fontSize: 12, color: c.textSecondary },
   count: { fontSize: 12, color: '#6366f1', marginLeft: 4 },

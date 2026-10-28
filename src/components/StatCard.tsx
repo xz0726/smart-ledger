@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, type ViewStyle } from 'react-native';
-import { useThemeColors, type ThemeColors } from '../theme';
+import { cardShadow, useThemeColors, type ThemeColors } from '../theme';
 
 interface Props {
   title: string;
@@ -31,7 +31,7 @@ export default function StatCard({ title, value, subtitle, color = '#6366f1', tr
 }
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
-  card: { backgroundColor: c.card, borderRadius: 12, padding: 16, flex: 1, marginHorizontal: 4, elevation: 1 },
+  card: { backgroundColor: c.card, borderRadius: 12, padding: 16, flex: 1, marginHorizontal: 4, ...cardShadow },
   title: { fontSize: 12, color: c.textSecondary, marginBottom: 4 },
   value: { fontSize: 20, fontWeight: 'bold' },
   subRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
