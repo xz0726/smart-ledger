@@ -71,7 +71,6 @@ export default function Contact() {
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: c.background },
   card: { backgroundColor: c.card, marginHorizontal: spacing.lg, marginTop: spacing.lg, borderRadius: radius.md, padding: spacing.lg, ...cardShadow },
-  cardTitle: { fontSize: fontSize.base, fontWeight: '600', color: c.text, marginBottom: spacing.md },
   desc: { fontSize: fontSize.base, color: c.textSecondary, lineHeight: 22 },
   groupName: { fontSize: 15, fontWeight: '600', color: c.text },
   groupId: { fontSize: fontSize.md, color: c.primary, marginTop: 6, fontWeight: '500' },

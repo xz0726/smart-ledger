@@ -138,7 +138,6 @@ export default function BudgetManager() {
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   card: { backgroundColor: c.card, marginHorizontal: spacing.lg, marginTop: spacing.lg, borderRadius: radius.md, padding: spacing.lg, ...cardShadow },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
-  title: { fontSize: fontSize.base, fontWeight: '600', color: c.text },
   addPanel: { backgroundColor: c.inputBg, borderRadius: radius.sm, padding: spacing.md, marginBottom: spacing.md },
   label: { fontSize: fontSize.sm, color: c.textSecondary, marginBottom: spacing.xs },
   catRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: spacing.md },

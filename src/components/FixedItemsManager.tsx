@@ -213,7 +213,6 @@ export default function FixedItemsManager() {
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   card: { backgroundColor: c.card, marginHorizontal: spacing.lg, marginTop: spacing.lg, borderRadius: radius.md, padding: spacing.lg, ...cardShadow },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs },
-  title: { fontSize: fontSize.base, fontWeight: '600', color: c.text },
   hint: { fontSize: fontSize.sm, color: c.textSecondary, marginBottom: spacing.md },
   addPanel: { backgroundColor: c.inputBg, borderRadius: radius.sm, padding: spacing.md, marginBottom: spacing.md },
   label: { fontSize: fontSize.sm, color: c.textSecondary, marginBottom: spacing.xs },

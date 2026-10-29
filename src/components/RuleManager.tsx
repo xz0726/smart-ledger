@@ -90,7 +90,6 @@ export default function RuleManager() {
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   card: { backgroundColor: c.card, marginHorizontal: spacing.lg, marginTop: spacing.lg, borderRadius: radius.md, padding: spacing.lg, ...cardShadow },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs },
-  title: { fontSize: fontSize.base, fontWeight: '600', color: c.text },
   hint: { fontSize: fontSize.sm, color: c.textSecondary, marginBottom: spacing.md },
   empty: { color: c.textSecondary, fontSize: fontSize.base, textAlign: 'center', paddingVertical: spacing.md },
   groupHeader: { marginTop: spacing.xs, marginBottom: 2 },

@@ -126,7 +126,6 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   flex1: { flex: 1 },
   content: { paddingBottom: spacing.xl },
   card: { backgroundColor: c.card, marginHorizontal: spacing.lg, marginTop: spacing.lg, borderRadius: radius.md, padding: spacing.lg, ...cardShadow },
-  cardTitle: { fontSize: fontSize.base, fontWeight: '600', color: c.text, marginBottom: spacing.md },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   chip: {
     paddingHorizontal: 14, paddingVertical: 7, borderRadius: radius.lg,

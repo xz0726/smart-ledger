@@ -88,7 +88,6 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: c.background },
   content: { paddingBottom: spacing.xl },
   card: { backgroundColor: c.card, marginHorizontal: spacing.lg, marginTop: spacing.lg, borderRadius: radius.md, padding: spacing.lg, ...cardShadow },
-  cardTitle: { fontSize: fontSize.base, fontWeight: '600', color: c.text, marginBottom: spacing.md },
   desc: { fontSize: fontSize.base, color: c.textSecondary, lineHeight: 22 },
   hint: { fontSize: fontSize.sm, color: c.hint, marginTop: spacing.sm },
   qrWrap: {

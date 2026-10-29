@@ -169,7 +169,6 @@ export default function CategoryManager() {
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   card: { backgroundColor: c.card, marginHorizontal: spacing.lg, marginTop: spacing.lg, borderRadius: radius.md, padding: spacing.lg, ...cardShadow },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
-  title: { fontSize: fontSize.base, fontWeight: '600', color: c.text },
   addPanel: { backgroundColor: c.inputBg, borderRadius: radius.sm, padding: spacing.md, marginBottom: spacing.md },
   nameInput: { backgroundColor: c.card, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.base, color: c.text, borderWidth: 1, borderColor: c.border, marginBottom: spacing.sm },
   typeRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
