@@ -112,6 +112,10 @@ export default function Settings() {
 
   return (
     <SafeAreaView style={st.safe} edges={['top']}>
+      {/* 自绘页头：与仪表盘/账单的 MonthSwitcher 头部同规格（居中 18/600），避免原生 header + SafeArea 双重 inset */}
+      <View style={st.pageHeader}>
+        <Text style={st.pageTitle}>设置</Text>
+      </View>
       <KeyboardAvoidingView style={st.flex1} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView style={st.flex1} keyboardShouldPersistTaps="handled">
           {/* 主题：跟随系统 / 浅色 / 深色 */}
@@ -213,6 +217,9 @@ export default function Settings() {
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: c.background },
   flex1: { flex: 1 },
+  // 页头规格照抄 MonthSwitcher 的 s.header：居中标题、页面底色
+  pageHeader: { alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: 8, paddingBottom: spacing.md },
+  pageTitle: { fontSize: 18, fontWeight: '600', color: c.text },
   card: { backgroundColor: c.card, marginHorizontal: spacing.lg, marginTop: spacing.lg, borderRadius: radius.md, padding: spacing.lg, ...cardShadow },
   seg: { flexDirection: 'row', backgroundColor: c.subtle, borderRadius: radius.sm, padding: 2 },
   segItem: { flex: 1, paddingVertical: 6, borderRadius: 6, alignItems: 'center' },
