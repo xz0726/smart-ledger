@@ -126,6 +126,9 @@ async function seedCategories(db: SQLite.SQLiteDatabase): Promise<void> {
 
 const DEMO_SEED_KEY = 'demo_seed_v1';
 
+// 临时覆盖开关：true 时每次启动清空业务表并重新注入演示数据（无线调试用，看完记得关回 false）
+const DEMO_SEED_FORCE = true;
+
 /**
  * 无线调试用演示数据：仅 __DEV__（Expo Go / 开发包）执行，生产 APK 不进入。
  * 幂等守卫：settings 里已有 demo_seed_v1 标记，或账本已有任何账单 → 跳过（绝不混入真实数据）。
@@ -134,10 +137,10 @@ const DEMO_SEED_KEY = 'demo_seed_v1';
 function seedDemoData(db: SQLite.SQLiteDatabase): void {
   try {
     const marked = db.getFirstSync<{ value: string }>('SELECT value FROM settings WHERE key = ?', [DEMO_SEED_KEY]);
-    if (marked) return;
+    if (marked && !DEMO_SEED_FORCE) return;
     const cnt = db.getFirstSync<{ cnt: number }>('SELECT COUNT(*) as cnt FROM expenses')?.cnt || 0;
     db.runSync('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', [DEMO_SEED_KEY, '1']);
-    if (cnt > 0) return; // 已有真实数据：只落标记，不再注入
+    if (cnt > 0 && !DEMO_SEED_FORCE) return; // 已有真实数据：只落标记，不再注入
 
     const catId = (name: string): number =>
       db.getFirstSync<{ id: number }>('SELECT id FROM categories WHERE name = ?', [name])?.id ?? 0;
@@ -161,6 +164,16 @@ function seedDemoData(db: SQLite.SQLiteDatabase): void {
         [amount, categoryId, desc, raw ?? desc, date, ts(date)]);
 
     db.withTransactionSync(() => {
+      if (DEMO_SEED_FORCE) {
+        // 覆盖模式：清空业务表与非默认分类，从干净状态注入（settings 全保留，含 AI 配置）
+        db.runSync('DELETE FROM expenses');
+        db.runSync('DELETE FROM budgets');
+        db.runSync('DELETE FROM fixed_items');
+        db.runSync('DELETE FROM quick_items');
+        db.runSync('DELETE FROM custom_rules');
+        db.runSync('DELETE FROM categories WHERE is_default = 0');
+        db.runSync("DELETE FROM sqlite_sequence WHERE name IN ('expenses','budgets','fixed_items','quick_items','custom_rules','categories')");
+      }
       // 上月（供环比）
       add(1680, housing, pd(1), '房租');
       add(620, food, pd(3), '上月餐费');
