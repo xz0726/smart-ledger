@@ -1,5 +1,43 @@
 # SmartLedger 开发日志
 
+## 2026-10-29 — 界面布局/图标优化 + 页头统一 + 弹窗规范 + 键盘修复 ✅（v1.6.0）
+
+### 目标
+- 以「web 预览 + Playwright 截图」建立 UI 可视化审查管线（容器内 adb 不可用），并据此系统性优化界面布局与图标
+- 统一设置页页头与仪表盘/账单（消除顶部空白）、统一全部弹窗样式、修复键盘弹出时输入条下沿的大空隙
+- 清理无用的旧布局与配色
+
+### 变更
+- **web 预览管线**（纯开发设施，不影响原生端）：
+  - 新增 `react-native-web`，metro 增加 `wasm` assetExts + COOP/COEP 加头代理；`patches/`（patch-package）修复 expo-sqlite web 的同步自旋超时与同源 worker blob 包装问题
+  - 新增 `src/services/db.web.ts`：web 平台内存数据层（Metro 平台解析自动生效），内置种子数据供 UI 审查
+  - 新增 `src/services/nativeActions(.web).ts`：文件导出/文件读取/邮件/图片分享统一收口，原生模块不进 web bundle
+- **A 组视觉微调**：
+  - theme 新增 `cardShadow`（iOS/web 卡片阴影，13 文件统一）；Toast 反色主题化；ExpenseCard 圆角 8→12
+  - Tab 图标 `List`→`ReceiptText`，tab 栏高度 60→64 修复 RNW 下标签裁切；3 个 lucide ColorValue 历史 tsc 错误消除
+  - 新增 `src/components/CardTitle.tsx`（lucide 图标+文字），替换全部 17 处 emoji 前缀标题（📈→TrendingUp、🎯→Target、⚡→Zap 等）
+  - 分类 emoji 渲染统一为 `category_color+'20'` 圆形 chip（占比图例/预算行/管理列表与账单列表同一语言）
+- **B 组 token 重构**：
+  - theme 新增语义色 `primary/success/danger/warning/info`（深色用提亮变体），22 文件约 98 处硬编码色收敛
+  - 新增 `src/theme/spacing.ts`（间距/圆角/字号阶梯），25 文件字面量替换
+  - 删除 NativeWind 死文件（tailwind.config.js / global.css / nativewind-env.d.ts）
+- **设置页页头统一**：设置页改 `headerShown: false` + 自绘居中标题（规格照抄 MonthSwitcher），三 tab 页头节奏一致；原生 header 与 SafeArea 的顶部双重 inset 随之消除
+- **弹窗样式统一**：新增 `src/components/ModalHeader.tsx`（左关闭 X · 绝对居中标题 · 右插槽），5 个底部弹窗套用；标题 15/16 混用、分隔线有无不一、按钮圆角 10/8 混用全部对齐；面板底部接入 `useSafeAreaInsets().bottom`；删除分类弹窗补点背景关闭
+- **键盘空隙修复**（`InputBar.tsx`）：原逻辑全量叠加键盘高度（Android adjustResize 再缩窗 → 双重补偿，空隙 ≈ 键盘高）；改为运行时自适应——窗口因键盘收缩则免补偿，未收缩（edge-to-edge 覆盖模式）则补偿 `键盘高 − 输入条下沿到窗口底距离`，输入条恰好落在键盘上沿
+- **清理**：删除零引用的 `src/utils/colors.ts`、一次性脚本 `test-day3.mjs`、4 个未引用资源 png、8 处死样式定义
+- **版本**：1.5.3 → 1.6.0（app.json + 设置页「关于」显示同步）
+
+### 结果
+- 测试：285/285 通过；`tsc --noEmit` 现存 1 个历史错误（ColorValue 3 个已随 Tab 改动消除，29→1）
+- 截图回归：v1→v6 六轮 12 页 × 浅深主题全绿；弹窗交互截图（解析/编辑/月份）确认统一效果
+
+### 待真机验证
+- 键盘弹出：输入条下沿贴键盘上沿、无遮挡无大空隙（覆盖模式与 adjustResize 构建两种环境）
+- 设置页顶部空白消失、三页页头节奏一致；深色模式主色提亮后各屏观感
+- 弹窗底部与手势条的安全间距；删除分类弹窗点背景可关闭
+
+---
+
 ## 2026-10-26 — 快捷记账金额显示一致 + standalone 主题跟随系统 ✅（v1.5.3）
 
 ### 目标
