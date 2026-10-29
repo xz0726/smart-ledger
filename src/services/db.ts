@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import type { Category, Expense, ExpenseWithCategory, Budget, BudgetWithCategory, StatsOverview, CategoryStats, DailyTrend, CustomRule, FixedItem, FixedItemWithCategory, QuickItemWithCategory } from '../types';
+import type { Category, Expense, ExpenseWithCategory, Budget, BudgetWithCategory, StatsOverview, CategoryStats, DailyTrend, CustomRule, FixedItem, FixedItemWithCategory, QuickItemWithCategory, PendingCapture } from '../types';
 import { isCurrentMonth } from '../utils/format';
 
 const FIXED_PREFIX = '[固定]';
@@ -88,6 +88,17 @@ async function migrate(db: SQLite.SQLiteDatabase): Promise<void> {
 
     CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(expense_date);
     CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category_id);
+
+    CREATE TABLE IF NOT EXISTS pending_captures (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      source      TEXT NOT NULL,
+      title       TEXT DEFAULT '',
+      text        TEXT DEFAULT '',
+      amount      REAL,
+      direction   TEXT NOT NULL DEFAULT 'expense',
+      status      TEXT NOT NULL DEFAULT 'pending',
+      created_at  TEXT DEFAULT (datetime('now','localtime'))
+    );
   `);
 }
 
@@ -742,6 +753,42 @@ export async function setSetting(key: string, value: string): Promise<void> {
     'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
     [key, value]
   );
+}
+
+// ===================== 通知捕获（待确认记账） =====================
+
+/** 新增一条捕获；60 秒内同来源同文本视为重复通知，返回 -1 */
+export async function addPendingCapture(c: { source: 'alipay' | 'wechat'; title: string; text: string; amount: number | null; direction: 'expense' | 'income' }): Promise<number> {
+  const database = getDb();
+  const dup = database.getFirstSync<{ cnt: number }>(
+    "SELECT COUNT(*) as cnt FROM pending_captures WHERE source = ? AND text = ? AND status = 'pending' AND created_at >= datetime('now', '-60 seconds', 'localtime')",
+    [c.source, c.text]
+  )?.cnt || 0;
+  if (dup > 0) return -1;
+  const result = database.runSync(
+    'INSERT INTO pending_captures (source, title, text, amount, direction) VALUES (?, ?, ?, ?, ?)',
+    [c.source, c.title, c.text, c.amount]
+  );
+  return result.lastInsertRowId;
+}
+
+export async function getPendingCaptures(): Promise<PendingCapture[]> {
+  return getDb().getAllSync<PendingCapture>(
+    "SELECT * FROM pending_captures WHERE status = 'pending' ORDER BY id DESC LIMIT 50"
+  );
+}
+
+/** 确认入账：写账单并置 confirmed；金额用列表里人工校准后的值 */
+export async function confirmPendingCapture(id: number, opts: { categoryId: number; amount: number; date: string; description?: string }): Promise<void> {
+  const database = getDb();
+  const row = database.getFirstSync<PendingCapture>('SELECT * FROM pending_captures WHERE id = ?', [id]);
+  if (!row || row.status !== 'pending') return;
+  await addExpense(opts.amount, opts.categoryId, opts.date, opts.description || row.title || row.text, row.text);
+  database.runSync("UPDATE pending_captures SET status = 'confirmed', amount = ? WHERE id = ?", [opts.amount, id]);
+}
+
+export async function ignorePendingCapture(id: number): Promise<void> {
+  getDb().runSync("UPDATE pending_captures SET status = 'ignored' WHERE id = ?", [id]);
 }
 
 // ===================== 备份恢复 =====================

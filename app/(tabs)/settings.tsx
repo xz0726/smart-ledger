@@ -7,6 +7,7 @@ import { useSettingsStore } from '../../src/stores/settingsStore';
 import { cardShadow, useThemeColors, type ThemeColors, type ThemePreference } from '../../src/theme';
 import { testConnection } from '../../src/services/ai';
 import CategoryManager from '../../src/components/CategoryManager';
+import NotifyCaptureCard from '../../src/components/NotifyCaptureCard';
 import CardTitle from '../../src/components/CardTitle';
 import BudgetManager from '../../src/components/BudgetManager';
 import FixedItemsManager from '../../src/components/FixedItemsManager';
@@ -150,6 +151,9 @@ export default function Settings() {
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* 自动记账（通知捕获，仅 Android） */}
+          <NotifyCaptureCard />
 
           {/* 预算管理 */}
           <BudgetManager />

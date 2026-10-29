@@ -9,7 +9,7 @@
 import type {
   Category, Expense, ExpenseWithCategory, Budget, BudgetWithCategory,
   StatsOverview, CategoryStats, DailyTrend, CustomRule, FixedItem,
-  FixedItemWithCategory, QuickItemWithCategory,
+  FixedItemWithCategory, QuickItemWithCategory, PendingCapture,
 } from '../types';
 import { isCurrentMonth } from '../utils/format';
 
@@ -537,6 +537,45 @@ export async function getSetting(key: string): Promise<string | null> {
 
 export async function setSetting(key: string, value: string): Promise<void> {
   settingsMap.set(key, value);
+}
+
+// ===================== 通知捕获（待确认记账） =====================
+
+const pendingCaptures: PendingCapture[] = [];
+let nextPendingCaptureId = 1;
+
+export async function addPendingCapture(c: { source: 'alipay' | 'wechat'; title: string; text: string; amount: number | null; direction: 'expense' | 'income' }): Promise<number> {
+  const dup = pendingCaptures.some(
+    x => x.source === c.source && x.text === c.text && x.status === 'pending' &&
+      Math.abs(Date.now() - Date.parse(x.created_at.replace(' ', 'T'))) < 60_000
+  );
+  if (dup) return -1;
+  const p = (n: number) => n.toString().padStart(2, '0');
+  const d = new Date();
+  const row: PendingCapture = {
+    id: nextPendingCaptureId++, source: c.source, title: c.title, text: c.text,
+    amount: c.amount, direction: c.direction, status: 'pending',
+    created_at: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`,
+  };
+  pendingCaptures.push(row);
+  return row.id;
+}
+
+export async function getPendingCaptures(): Promise<PendingCapture[]> {
+  return pendingCaptures.filter(x => x.status === 'pending').slice(0, 50).reverse();
+}
+
+export async function confirmPendingCapture(id: number, opts: { categoryId: number; amount: number; date: string; description?: string }): Promise<void> {
+  const row = pendingCaptures.find(x => x.id === id && x.status === 'pending');
+  if (!row) return;
+  await addExpense(opts.amount, opts.categoryId, opts.date, opts.description || row.title || row.text, row.text);
+  row.status = 'confirmed';
+  row.amount = opts.amount;
+}
+
+export async function ignorePendingCapture(id: number): Promise<void> {
+  const row = pendingCaptures.find(x => x.id === id && x.status === 'pending');
+  if (row) row.status = 'ignored';
 }
 
 // ===================== 备份恢复 =====================

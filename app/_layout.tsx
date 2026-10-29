@@ -4,6 +4,7 @@ import { useEffect, useMemo } from 'react';
 import * as SystemUI from 'expo-system-ui';
 import { useSettingsStore } from '../src/stores/settingsStore';
 import { syncFixedItems } from '../src/services/db';
+import { startNotifyCapture } from '../src/services/notifyCapture';
 import { getNavigationTheme, useResolvedTheme, useThemeColors } from '../src/theme';
 
 export default function RootLayout() {
@@ -16,6 +17,8 @@ export default function RootLayout() {
     loadSettings();
     // 打开 App 时补生成到期固定收支记录（幂等，无新增则 no-op）
     syncFixedItems().catch(e => console.error('syncFixedItems failed:', e));
+    // 通知捕获自动记账：开关开启且已授权时开始监听（含取出后台落盘缓冲）
+    startNotifyCapture().catch(e => console.error('startNotifyCapture failed:', e));
   }, []);
 
   // 窗口背景跟随主题：native-stack 转场（pop fade）期间白色窗口背景会透过透明 Fragment 层

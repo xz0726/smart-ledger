@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Repeat, Rewind, Target, TrendingUp } from 'lucide-react-native';
 import StatCard from '../../src/components/StatCard';
 import CardTitle from '../../src/components/CardTitle';
+import PendingCapturesCard from '../../src/components/PendingCapturesCard';
 import InputBar from '../../src/components/InputBar';
 import MonthSwitcher from '../../src/components/MonthSwitcher';
 import CategoryBreakdownCard from '../../src/components/CategoryBreakdownCard';
@@ -67,6 +68,9 @@ export default function Dashboard() {
         <RefreshControl refreshing={loading || budgetLoading} onRefresh={() => { reloadStats(); reloadBudgets(); }} tintColor={c.primary} />
       }>
         <MonthSwitcher month={month} onChange={setMonth} />
+
+        {/* 通知捕获的待确认记账（有内容才显示） */}
+        <PendingCapturesCard />
 
         {/* 收支总览 */}
         <View style={s.statsRow}>

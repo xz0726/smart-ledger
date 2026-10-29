@@ -118,3 +118,15 @@ export interface QuickItemWithCategory extends QuickItem {
   category_icon: string | null;
   category_color: string | null;
 }
+
+/** 通知捕获的支付类通知（待人工确认入账） */
+export interface PendingCapture {
+  id: number;
+  source: 'alipay' | 'wechat';
+  title: string;
+  text: string;
+  amount: number | null;
+  direction: 'expense' | 'income';
+  status: 'pending' | 'confirmed' | 'ignored';
+  created_at: string;
+}
