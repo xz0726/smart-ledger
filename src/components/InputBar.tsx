@@ -53,15 +53,18 @@ export default function InputBar({ onAddExpense }: Props) {
     const showSub = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
       e => {
-        // Android adjustResize：窗口自行缩到键盘上沿，输入条自然贴键盘，无需补偿；
-        // 再叠全量键盘高度会造成「键盘上沿与输入条之间的大空白」。
-        if (Platform.OS === 'android') { setKeyboardPad(0); return; }
-        // iOS：键盘盖住 tab 栏。测量输入条下沿到窗口底的距离（= tab 栏高 + 底部安全区），
-        // 只补偿超出部分，让输入条恰好落在键盘上沿。
+        const kb = e.endCoordinates.height;
+        // edge-to-edge（SDK 53+ 默认，Expo Go 与 APK 均是）下 adjustResize 不缩窗，
+        // 键盘直接覆盖在窗口之上 → 输入条必须自行上移。
+        // 仅当窗口真的因键盘收缩（非 edge-to-edge 构建的原生 adjustResize）时才免补偿。
         const winH = Dimensions.get('window').height;
+        const screenH = Dimensions.get('screen').height;
+        if (screenH - winH >= kb * 0.5) { setKeyboardPad(0); return; }
+        // 补偿量 = 键盘高 − 输入条下沿到窗口底的距离（= tab 栏高 + 底部安全区），
+        // 使输入条恰好落在键盘上沿（全量补偿会多出 tab 栏高度的空白）。
         wrapRef.current?.measureInWindow((_x, y, _w, h) => {
           const distToBottom = winH - (y + h);
-          setKeyboardPad(Math.max(0, e.endCoordinates.height - distToBottom));
+          setKeyboardPad(Math.max(0, kb - distToBottom));
         });
       }
     );
