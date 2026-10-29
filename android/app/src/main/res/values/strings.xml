@@ -1,0 +1,7 @@
+<resources>
+  <string name="app_name">智记账</string>
+  <!-- expo-system-ui 读取此资源决定 AppCompatDelegate night mode：
+       automatic → MODE_NIGHT_FOLLOW_SYSTEM（跟随系统）；缺失时库内默认 light，
+       会强制 MODE_NIGHT_NO，standalone APK 里 useColorScheme 恒为 light -->
+  <string name="expo_system_ui_user_interface_style" translatable="false">automatic</string>
+</resources>

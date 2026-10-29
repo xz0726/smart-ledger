@@ -38,7 +38,14 @@ yarn-error.*
 
 # generated native folders
 /ios
-/android
+
+# android/ 已纳入版本控制（含手工定制：通知监听 Kotlin、主题资源、manifest），
+# 仅忽略构建生成物与本机配置
+/android/.gradle
+/android/build
+/android/app/build
+/android/local.properties
+/android/app/src/main/assets
 force-ipv4.js
 eas-ipv4.js
 package-lock.json.bak
