@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView, Pressable, StyleSheet } from 'react-native';
-import { ChartColumn, ChevronLeft, ChevronRight, X } from 'lucide-react-native';
+import { ChartColumn, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import ModalHeader from './ModalHeader';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors, type ThemeColors } from '../theme';
 import { formatMonth, getCurrentMonth, getNextMonth, getPreviousMonth, getRecentMonths, isCurrentMonth } from '../utils/format';
 import { spacing, radius, fontSize } from '../theme/spacing';
@@ -15,6 +17,7 @@ export default function MonthSwitcher({ month, onChange }: Props) {
   const months = useMemo(() => getRecentMonths(), []);
   const current = getCurrentMonth();
   const c = useThemeColors();
+  const insets = useSafeAreaInsets();
   const s = useMemo(() => createStyles(c), [c]);
 
   return (
@@ -45,12 +48,8 @@ export default function MonthSwitcher({ month, onChange }: Props) {
       <Modal visible={visible} animationType="slide" transparent onRequestClose={() => setVisible(false)}>
         <Pressable style={s.overlay} onPress={() => setVisible(false)}>
           <Pressable style={s.modal} onPress={e => e.stopPropagation()}>
-            <View style={s.modalHeader}>
-              <TouchableOpacity onPress={() => setVisible(false)}><X size={22} color={c.textSecondary} /></TouchableOpacity>
-              <Text style={s.modalTitle}>选择月份</Text>
-              <View style={{ width: 22 }} />
-            </View>
-            <ScrollView style={s.body}>
+            <ModalHeader title="选择月份" onClose={() => setVisible(false)} />
+            <ScrollView style={[s.body, { paddingBottom: Math.max(insets.bottom, spacing.xxl) }]}>
               <View style={s.grid}>
                 {months.map(m => {
                   const active = m === month;
@@ -83,9 +82,7 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   backBtnText: { fontSize: fontSize.md, color: c.primaryText, fontWeight: '500' },
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
   modal: { backgroundColor: c.card, borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: '60%' },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: c.subtle },
-  modalTitle: { fontSize: fontSize.lg, fontWeight: '600', color: c.text },
-  body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
+  body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   monthItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', width: '31%', paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: c.border, backgroundColor: c.card },
   monthItemActive: { borderColor: c.primary, backgroundColor: c.primarySoftBg },

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { View, TextInput, TouchableOpacity, Text, ActivityIndicator, Alert, StyleSheet, Keyboard, Animated, Platform } from 'react-native';
+import { View, TextInput, TouchableOpacity, Text, ActivityIndicator, Alert, StyleSheet, Keyboard, Animated, Platform, Dimensions } from 'react-native';
 import { Send } from 'lucide-react-native';
 import { useThemeColors, type ThemeColors } from '../theme';
 import type { AIConfig, ParsedExpense } from '../types';
@@ -42,20 +42,32 @@ async function reclassifyOthers(items: ParsedExpense[], fallbackInput: string): 
 export default function InputBar({ onAddExpense }: Props) {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [keyboardPad, setKeyboardPad] = useState(0);
   const [previewItems, setPreviewItems] = useState<ParsedExpense[] | null>(null);
   const inputRef = useRef<TextInput>(null);
+  const wrapRef = useRef<View>(null);
   const c = useThemeColors();
   const s = useMemo(() => createStyles(c), [c]);
 
   useEffect(() => {
     const showSub = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      e => setKeyboardHeight(e.endCoordinates.height)
+      e => {
+        // Android adjustResize：窗口自行缩到键盘上沿，输入条自然贴键盘，无需补偿；
+        // 再叠全量键盘高度会造成「键盘上沿与输入条之间的大空白」。
+        if (Platform.OS === 'android') { setKeyboardPad(0); return; }
+        // iOS：键盘盖住 tab 栏。测量输入条下沿到窗口底的距离（= tab 栏高 + 底部安全区），
+        // 只补偿超出部分，让输入条恰好落在键盘上沿。
+        const winH = Dimensions.get('window').height;
+        wrapRef.current?.measureInWindow((_x, y, _w, h) => {
+          const distToBottom = winH - (y + h);
+          setKeyboardPad(Math.max(0, e.endCoordinates.height - distToBottom));
+        });
+      }
     );
     const hideSub = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardHeight(0)
+      () => setKeyboardPad(0)
     );
     return () => { showSub.remove(); hideSub.remove(); };
   }, []);
@@ -107,7 +119,7 @@ export default function InputBar({ onAddExpense }: Props) {
   };
 
   return (
-    <View style={[s.wrap, { paddingBottom: keyboardHeight }]}>
+    <View ref={wrapRef} style={[s.wrap, { paddingBottom: keyboardPad }]}>
       <View style={s.bar}>
         <View style={s.inputWrap}>
           <TextInput ref={inputRef} style={s.input} placeholder="输入消费，如：午饭花了35元"

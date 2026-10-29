@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, Modal, TouchableOpacity, Alert, StyleSheet } from 'react-native';
-import { X } from 'lucide-react-native';
+import ModalHeader from './ModalHeader';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors, type ThemeColors } from '../theme';
 import type { Category } from '../types';
 import { spacing, radius, fontSize } from '../theme/spacing';
@@ -21,6 +22,7 @@ interface Props {
 export default function CategoryDeleteModal({ visible, category, categories, counts, onCancel, onConfirm }: Props) {
   const [selectedTarget, setSelectedTarget] = useState(0);
   const c = useThemeColors();
+  const insets = useSafeAreaInsets();
   const s = useMemo(() => createStyles(c), [c]);
 
   useEffect(() => {
@@ -43,15 +45,10 @@ export default function CategoryDeleteModal({ visible, category, categories, cou
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onCancel}>
       <View style={s.overlay}>
+        <TouchableOpacity style={s.backdrop} onPress={onCancel} activeOpacity={1} />
         <View style={s.modal}>
-          <View style={s.header}>
-            <TouchableOpacity onPress={onCancel}>
-              <X size={22} color={c.textSecondary} />
-            </TouchableOpacity>
-            <Text style={s.headerTitle}>删除分类「{cat.icon} {cat.name}」</Text>
-            <View style={{ width: 22 }} />
-          </View>
-          <View style={s.body}>
+          <ModalHeader title={`删除分类「${cat.icon} ${cat.name}」`} onClose={onCancel} />
+          <View style={[s.body, { paddingBottom: Math.max(insets.bottom, spacing.xl) }]}>
             <Text style={s.info}>该分类下有 {counts.expenses} 条账单、{counts.budgets} 条预算、{counts.fixedItems} 条固定收支。</Text>
             <Text style={s.infoSub}>删除后将删除 {counts.budgets} 条预算、停用 {counts.fixedItems} 条固定收支。</Text>
 
@@ -84,9 +81,8 @@ export default function CategoryDeleteModal({ visible, category, categories, cou
 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
-  modal: { backgroundColor: c.card, borderTopLeftRadius: 16, borderTopRightRadius: 16 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: 14 },
-  headerTitle: { fontSize: 15, fontWeight: '600', color: c.text },
+  backdrop: { flex: 1 },
+  modal: { backgroundColor: c.card, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg },
   body: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
   info: { fontSize: fontSize.base, color: c.text, lineHeight: 20 },
   infoSub: { fontSize: fontSize.sm, color: c.danger, marginTop: spacing.xs, marginBottom: spacing.md },
@@ -96,10 +92,10 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   catItemActive: { borderColor: c.primary, backgroundColor: c.primarySoftBg },
   catName: { fontSize: fontSize.sm, color: c.text },
   catNameActive: { color: c.primary, fontWeight: '500' },
-  primaryBtn: { backgroundColor: c.primary, paddingVertical: 10, borderRadius: radius.sm, alignItems: 'center', marginBottom: spacing.sm },
+  primaryBtn: { backgroundColor: c.primary, paddingVertical: spacing.md, borderRadius: radius.sm, alignItems: 'center', marginBottom: spacing.sm },
   primaryText: { color: '#fff', fontSize: fontSize.base, fontWeight: '500' },
-  dangerBtn: { paddingVertical: 10, borderRadius: radius.sm, alignItems: 'center', marginBottom: spacing.sm },
+  dangerBtn: { paddingVertical: spacing.md, borderRadius: radius.sm, alignItems: 'center', marginBottom: spacing.sm },
   dangerText: { color: c.danger, fontSize: fontSize.base, fontWeight: '500' },
-  cancelBtn: { paddingVertical: 10, alignItems: 'center' },
+  cancelBtn: { paddingVertical: spacing.md, alignItems: 'center' },
   cancelText: { color: c.textSecondary, fontSize: fontSize.base },
 });

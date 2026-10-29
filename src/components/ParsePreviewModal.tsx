@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors, type ThemeColors } from '../theme';
 import type { ParsedExpense } from '../types';
 import { spacing, radius, fontSize } from '../theme/spacing';
@@ -16,15 +17,16 @@ interface Props {
  */
 export default function ParsePreviewModal({ visible, items, onConfirm, onCancel }: Props) {
   const c = useThemeColors();
+  const insets = useSafeAreaInsets();
   const s = useMemo(() => createStyles(c), [c]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
       <View style={s.overlay}>
         <TouchableOpacity style={s.backdrop} onPress={onCancel} activeOpacity={1} />
-        <View style={s.panel}>
+        <View style={[s.panel, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
           <Text style={s.title}>识别到 {items.length} 笔记录</Text>
-          <ScrollView style={{ maxHeight: 320 }} bounces={false}>
+          <ScrollView style={{ maxHeight: '85%' }} bounces={false}>
             {items.map((item, i) => (
               <View key={i} style={s.row}>
                 <Text style={s.amount}>¥{item.amount.toFixed(2)}</Text>
@@ -53,7 +55,7 @@ export default function ParsePreviewModal({ visible, items, onConfirm, onCancel 
 const createStyles = (c: ThemeColors) => StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
   backdrop: { flex: 1 },
-  panel: { backgroundColor: c.card, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: spacing.lg, paddingBottom: spacing.xl },
+  panel: { backgroundColor: c.card, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: spacing.lg },
   title: { fontSize: fontSize.lg, fontWeight: '600', color: c.text, marginBottom: spacing.md, textAlign: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.subtle },
   amount: { fontSize: fontSize.lg, fontWeight: '600', color: c.primary, width: 80 },
@@ -62,9 +64,9 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   description: { fontSize: fontSize.sm, color: c.textSecondary, marginTop: 2 },
   date: { fontSize: fontSize.xs, color: c.hint, marginTop: 2 },
   btnRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
-  btn: { flex: 1, paddingVertical: spacing.md, borderRadius: 10, alignItems: 'center' },
+  btn: { flex: 1, paddingVertical: spacing.md, borderRadius: radius.sm, alignItems: 'center' },
   btnCancel: { backgroundColor: c.subtle },
-  btnCancelText: { color: c.textSecondary, fontSize: 15, fontWeight: '500' },
+  btnCancelText: { color: c.textSecondary, fontSize: fontSize.base + 1, fontWeight: '500' },
   btnConfirm: { backgroundColor: c.primary },
-  btnConfirmText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  btnConfirmText: { color: '#fff', fontSize: fontSize.base + 1, fontWeight: '600' },
 });

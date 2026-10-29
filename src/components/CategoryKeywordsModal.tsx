@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, Modal, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Keyboard, Alert, StyleSheet } from 'react-native';
-import { X, Trash2 } from 'lucide-react-native';
+import { Trash2 } from 'lucide-react-native';
+import ModalHeader from './ModalHeader';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors, type ThemeColors } from '../theme';
 import type { Category, CustomRule } from '../types';
 import { getCustomRules, addCustomRule, deleteCustomRule } from '../services/db';
@@ -22,6 +24,7 @@ export default function CategoryKeywordsModal({ visible, category, onClose }: Pr
   const [keyword, setKeyword] = useState('');
   const [saving, setSaving] = useState(false);
   const c = useThemeColors();
+  const insets = useSafeAreaInsets();
   const s = useMemo(() => createStyles(c), [c]);
 
   useEffect(() => {
@@ -83,17 +86,11 @@ export default function CategoryKeywordsModal({ visible, category, onClose }: Pr
         <View style={s.overlay}>
           <TouchableOpacity style={s.backdrop} onPress={() => { Keyboard.dismiss(); onClose(); }} activeOpacity={1} />
           <View style={s.modal}>
-            <View style={s.header}>
-              <TouchableOpacity onPress={onClose}>
-                <X size={22} color={c.textSecondary} />
-              </TouchableOpacity>
-              <Text style={s.headerTitle}>{category.icon} {category.name} · 关键词</Text>
-              <View style={{ width: 22 }} />
-            </View>
+            <ModalHeader title={`${category.icon} ${category.name} · 关键词`} onClose={onClose} />
             <Text style={s.hint}>内置关键词固定不可编辑，此处管理该分类的用户自定义关键词</Text>
             {/* 「添加」行必须在 keyboardShouldPersistTaps="handled" 的 ScrollView 内：
                 键盘弹出时点击按钮，'never' 默认会把首次触点交给收键盘而吞掉按钮点击 */}
-            <ScrollView style={s.body} keyboardShouldPersistTaps="handled" onScrollBeginDrag={() => Keyboard.dismiss()}>
+            <ScrollView style={[s.body, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]} keyboardShouldPersistTaps="handled" onScrollBeginDrag={() => Keyboard.dismiss()}>
               <View style={s.addRow}>
                 <TextInput style={s.input} value={keyword} onChangeText={setKeyword} placeholder="输入关键词，如：猫粮"
                   placeholderTextColor={c.hint} onSubmitEditing={handleAdd} returnKeyType="done" editable={!saving} />
@@ -123,15 +120,13 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   flex1: { flex: 1 },
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
   backdrop: { flex: 1 },
-  modal: { backgroundColor: c.card, borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: '85%' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: 14 },
-  headerTitle: { fontSize: 15, fontWeight: '600', color: c.text },
+  modal: { backgroundColor: c.card, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, maxHeight: '85%' },
   hint: { fontSize: fontSize.sm, color: c.textSecondary, paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
   addRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md },
   input: { flex: 1, backgroundColor: c.inputBg, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.base, color: c.text, borderWidth: 1, borderColor: c.border },
   addBtn: { backgroundColor: c.primary, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radius.sm },
   addBtnText: { color: '#fff', fontSize: fontSize.base, fontWeight: '500' },
-  body: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
+  body: { paddingHorizontal: spacing.lg },
   empty: { color: c.textSecondary, fontSize: fontSize.base, textAlign: 'center', paddingVertical: 20 },
   ruleItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.subtle },
   keyword: { flex: 1, fontSize: fontSize.base, fontWeight: '500', color: c.text },

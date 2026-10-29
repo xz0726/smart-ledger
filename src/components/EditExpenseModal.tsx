@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, Modal, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Keyboard, Alert, StyleSheet } from 'react-native';
-import { X, Check } from 'lucide-react-native';
+import { Check } from 'lucide-react-native';
+import ModalHeader from './ModalHeader';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors, type ThemeColors } from '../theme';
 import type { ExpenseWithCategory, Category } from '../types';
 import { getCategories } from '../services/db';
@@ -21,6 +23,7 @@ export default function EditExpenseModal({ visible, expense, onClose, onSave }: 
   const [categories, setCategories] = useState<Category[]>([]);
   const [saving, setSaving] = useState(false);
   const c = useThemeColors();
+  const insets = useSafeAreaInsets();
   const s = useMemo(() => createStyles(c), [c]);
 
   useEffect(() => {
@@ -60,15 +63,17 @@ export default function EditExpenseModal({ visible, expense, onClose, onSave }: 
             {/* header 的「保存」必须在 keyboardShouldPersistTaps="handled" 的 ScrollView 内：
                 键盘弹出时点击，'never' 默认会把首次触点交给收键盘而吞掉按钮点击 */}
             <ScrollView keyboardShouldPersistTaps="handled" onScrollBeginDrag={() => Keyboard.dismiss()}>
-            <View style={s.header}>
-              <TouchableOpacity onPress={onClose}><X size={22} color={c.textSecondary} /></TouchableOpacity>
-              <Text style={s.headerTitle}>编辑账单</Text>
-              <TouchableOpacity onPressIn={() => { Keyboard.dismiss(); handleSave(); }} disabled={saving} style={s.saveBtn}>
-                <Check size={16} color="white" />
-                <Text style={s.saveText}>{saving ? '保存中…' : '保存'}</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={s.body}>
+            <ModalHeader
+              title="编辑账单"
+              onClose={onClose}
+              right={
+                <TouchableOpacity onPressIn={() => { Keyboard.dismiss(); handleSave(); }} disabled={saving} style={s.saveBtn}>
+                  <Check size={16} color="white" />
+                  <Text style={s.saveText}>{saving ? '保存中…' : '保存'}</Text>
+                </TouchableOpacity>
+              }
+            />
+            <View style={[s.body, { paddingBottom: Math.max(insets.bottom, spacing.xl) }]}>
               <Text style={s.label}>金额</Text>
               <View style={s.amountRow}>
                 <Text style={s.yuan}>¥</Text>
@@ -102,12 +107,10 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   flex1: { flex: 1 },
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
   backdrop: { flex: 1 },
-  modal: { backgroundColor: c.card, borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: '85%' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: c.subtle },
-  headerTitle: { fontSize: fontSize.lg, fontWeight: '600', color: c.text },
-  saveBtn: { backgroundColor: c.primary, paddingHorizontal: spacing.lg, paddingVertical: 6, borderRadius: radius.pill, flexDirection: 'row', alignItems: 'center' },
+  modal: { backgroundColor: c.card, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, maxHeight: '85%' },
+  saveBtn: { backgroundColor: c.primary, paddingHorizontal: spacing.lg, paddingVertical: 6, borderRadius: radius.pill, flexDirection: 'row', alignItems: 'center' }, // ModalHeader 右插槽内
   saveText: { color: '#fff', fontSize: fontSize.base, fontWeight: '500', marginLeft: spacing.xs },
-  body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
+  body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
   label: { fontSize: fontSize.sm, color: c.textSecondary, marginBottom: spacing.xs },
   amountRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.lg },
   yuan: { fontSize: 18, color: c.text, fontWeight: '600', marginRight: spacing.sm },
