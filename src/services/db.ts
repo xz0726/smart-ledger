@@ -12,6 +12,7 @@ function getDb(): SQLite.SQLiteDatabase {
       db = SQLite.openDatabaseSync('smartledger.db');
       migrate(db);
       seedCategories(db);
+      if (__DEV__) seedDemoData(db);
     } catch (e) {
       console.error('Failed to open database:', e);
       throw e;
@@ -118,6 +119,103 @@ async function seedCategories(db: SQLite.SQLiteDatabase): Promise<void> {
       'INSERT OR IGNORE INTO categories (icon, name, color, type, is_default) VALUES (?, ?, ?, ?, 1)',
       [icon, name, color, type]
     );
+  }
+}
+
+// ===================== 演示数据种子（仅 __DEV__） =====================
+
+const DEMO_SEED_KEY = 'demo_seed_v1';
+
+/**
+ * 无线调试用演示数据：仅 __DEV__（Expo Go / 开发包）执行，生产 APK 不进入。
+ * 幂等守卫：settings 里已有 demo_seed_v1 标记，或账本已有任何账单 → 跳过（绝不混入真实数据）。
+ * 只写业务表，不碰 ai_api_url / ai_api_key / ai_model 等 AI 配置键。
+ */
+function seedDemoData(db: SQLite.SQLiteDatabase): void {
+  try {
+    const marked = db.getFirstSync<{ value: string }>('SELECT value FROM settings WHERE key = ?', [DEMO_SEED_KEY]);
+    if (marked) return;
+    const cnt = db.getFirstSync<{ cnt: number }>('SELECT COUNT(*) as cnt FROM expenses')?.cnt || 0;
+    db.runSync('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', [DEMO_SEED_KEY, '1']);
+    if (cnt > 0) return; // 已有真实数据：只落标记，不再注入
+
+    const catId = (name: string): number =>
+      db.getFirstSync<{ id: number }>('SELECT id FROM categories WHERE name = ?', [name])?.id ?? 0;
+    const food = catId('餐饮'), transport = catId('交通'), shopping = catId('购物'),
+      fun = catId('娱乐'), housing = catId('居住'), medical = catId('医疗'),
+      study = catId('学习'), telecom = catId('通讯'), income = catId('收入'), other = catId('其他');
+
+    const p = (n: number) => n.toString().padStart(2, '0');
+    const now = new Date();
+    const monthDate = (day: number) => Math.min(day, now.getDate()); // 不写未来日期
+    const day = (offsetDaysAgo: number) => {
+      const d = new Date(); d.setDate(d.getDate() - offsetDaysAgo);
+      return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+    };
+    const md = (dayOfMonth: number) => `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(monthDate(dayOfMonth))}`;
+    const prev = new Date(); prev.setMonth(prev.getMonth() - 1);
+    const pd = (dayOfMonth: number) => `${prev.getFullYear()}-${p(prev.getMonth() + 1)}-${p(dayOfMonth)}`;
+    const ts = (date: string) => `${date} 12:00:00`;
+    const add = (amount: number, categoryId: number, date: string, desc: string, raw?: string) =>
+      db.runSync('INSERT INTO expenses (amount, category_id, description, raw_input, expense_date, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+        [amount, categoryId, desc, raw ?? desc, date, ts(date)]);
+
+    db.withTransactionSync(() => {
+      // 上月（供环比）
+      add(1680, housing, pd(1), '房租');
+      add(620, food, pd(3), '上月餐费');
+      add(260, shopping, pd(8), '上月购物');
+      add(95, fun, pd(15), '上月娱乐');
+      add(8800, income, pd(10), '上月工资');
+
+      // 本月：跨天分布（趋势图）+ 今天（麻辣烫/地铁）
+      add(12, food, md(1), '早餐豆浆油条');
+      add(28, food, md(2), '午餐黄焖鸡');
+      add(4, transport, md(2), '地铁通勤');
+      add(35, food, md(3), '晚餐外卖');
+      add(199, shopping, md(3), '卫衣');
+      add(45, study, md(4), '技术书籍');
+      add(16, food, md(5), '瑞幸咖啡', '瑞幸 16元');
+      add(9.9, fun, md(6), '视频会员');
+      add(58, medical, md(7), '感冒药');
+      add(32, food, md(8), '火锅');
+      add(6, transport, md(9), '公交');
+      add(129, shopping, md(10), '运动鞋垫');
+      add(22, food, md(11), '面馆');
+      add(30, telecom, md(12), '话费充值');
+      add(18, food, md(13), '奶茶');
+      add(76, fun, md(14), '电影票');
+      add(14, food, md(15), '煎饼果子');
+      add(240, shopping, md(16), '日用品囤货');
+      add(5, transport, md(17), '共享单车');
+      add(42, food, md(18), '烧烤');
+      add(88, study, md(19), '网课');
+      add(26, food, md(20), '寿司');
+      add(12, transport, md(21), '打车');
+      add(36, food, day(1), '午餐拌饭');
+      add(120, income, day(2), '稿费');
+      add(23.5, food, day(0), '晚餐麻辣烫');
+      add(3.5, transport, day(0), '地铁');
+      add(8800, income, md(10), '工资');
+
+      // 预算：购物超支（红）、餐饮预警线上（进度条演示）
+      db.runSync('INSERT INTO budgets (category_id, amount, period, month) VALUES (?, ?, ?, ?)', [shopping, 300, 'monthly', `${now.getFullYear()}-${p(now.getMonth() + 1)}`]);
+      db.runSync('INSERT INTO budgets (category_id, amount, period, month) VALUES (?, ?, ?, ?)', [food, 800, 'monthly', `${now.getFullYear()}-${p(now.getMonth() + 1)}`]);
+
+      // 固定收支：房租每月 1 日（syncFixedItems 启动时自动补生成当月账单）
+      db.runSync('INSERT INTO fixed_items (name, type, category_id, amount, frequency, weekday, day_of_month) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        ['房租', 'expense', housing, 1800, 'monthly', null, 1]);
+
+      // 快捷记账
+      db.runSync('INSERT INTO quick_items (name, category_id, amount) VALUES (?, ?, ?)', ['早餐', food, 8]);
+      db.runSync('INSERT INTO quick_items (name, category_id, amount) VALUES (?, ?, ?)', ['地铁', transport, 4]);
+      db.runSync('INSERT INTO quick_items (name, category_id, amount) VALUES (?, ?, ?)', ['咖啡', other, 15]);
+
+      // 自定义关键词规则
+      db.runSync('INSERT OR REPLACE INTO custom_rules (keyword, category) VALUES (?, ?)', ['瑞幸', '餐饮']);
+    });
+  } catch (e) {
+    console.error('seedDemoData failed:', e);
   }
 }
 
