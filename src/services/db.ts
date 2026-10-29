@@ -511,7 +511,7 @@ export async function getBudgets(month: string): Promise<BudgetWithCategory[]> {
   );
 }
 
-export async function setBudget(categoryId: number, amount: number, month: string, period: 'monthly' | 'weekly' = 'monthly'): Promise<void> {
+export async function setBudget(categoryId: number, amount: number, month: string, period: 'monthly' | 'weekly' | 'yearly' = 'monthly'): Promise<void> {
   const database = getDb();
   const existing = database.getFirstSync<{ id: number }>(
     'SELECT id FROM budgets WHERE category_id = ? AND month = ?',

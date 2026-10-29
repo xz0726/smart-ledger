@@ -25,7 +25,7 @@ export function useBudget(month: string) {
   const setBudget = useCallback(async (
     categoryId: number,
     amount: number,
-    period: 'monthly' | 'weekly' = 'monthly'
+    period: 'monthly' | 'weekly' | 'yearly' = 'monthly'
   ) => {
     await db.setBudget(categoryId, amount, month, period);
     await load();

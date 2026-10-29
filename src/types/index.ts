@@ -29,7 +29,7 @@ export interface Budget {
   id: number;
   category_id: number;
   amount: number;
-  period: 'monthly' | 'weekly';
+  period: 'monthly' | 'weekly' | 'yearly';
   month: string; // YYYY-MM
 }
 

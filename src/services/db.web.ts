@@ -458,7 +458,7 @@ export async function getBudgets(month: string): Promise<BudgetWithCategory[]> {
     .sort((a, b) => b.spent - a.spent);
 }
 
-export async function setBudget(categoryId: number, amount: number, month: string, period: 'monthly' | 'weekly' = 'monthly'): Promise<void> {
+export async function setBudget(categoryId: number, amount: number, month: string, period: 'monthly' | 'weekly' | 'yearly' = 'monthly'): Promise<void> {
   const existing = budgets.find(b => b.category_id === categoryId && b.month === month);
   if (existing) {
     existing.amount = amount;
