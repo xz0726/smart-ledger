@@ -49,3 +49,6 @@ yarn-error.*
 force-ipv4.js
 eas-ipv4.js
 package-lock.json.bak
+
+# 构建产物：APK 放 GitHub Releases，不进 git 历史
+/releases/*.apk
