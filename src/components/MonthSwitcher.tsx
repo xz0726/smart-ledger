@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Modal, TouchableOpacity, ScrollView, Pressable, StyleSheet, AppState, Animated, AccessibilityInfo } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, ScrollView, Pressable, StyleSheet, AppState, AccessibilityInfo, useWindowDimensions } from 'react-native';
 import { ChartColumn, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
 import ModalHeader from './ModalHeader';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors, type ThemeColors } from '../theme';
@@ -25,7 +24,6 @@ export default function MonthSwitcher({ month, onChange }: Props) {
   const [, forceRefresh] = useState(0);
 
   const [hint, setHint] = useState<string | null>(null);
-  const hintOpacity = useRef(new Animated.Value(0)).current;
   const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const current = getCurrentMonth();
@@ -34,7 +32,11 @@ export default function MonthSwitcher({ month, onChange }: Props) {
   const months = useMemo(() => getMonthsInYear(viewYear), [viewYear]);
   const c = useThemeColors();
   const insets = useSafeAreaInsets();
+  const { height: winH } = useWindowDimensions();
   const s = useMemo(() => createStyles(c), [c]);
+
+  // 提示统一浮在中上方（约屏幕高度 20%）；页面内需扣掉顶部安全区，才能与弹层内同一屏幕位置
+  const hintTop = Math.round(winH * 0.2);
 
   // 最早有数据的年份；恒定允许回看一年（空库 / 跨年首月也不至于无历史可看）
   const earliestYear = useMemo(() => {
@@ -72,20 +74,15 @@ export default function MonthSwitcher({ month, onChange }: Props) {
     onChange(m);
   };
 
-  /** 点到未来月份 / 未来年份时的俏皮轻提示 */
+  /** 点到未来月份 / 未来年份时的俏皮轻提示（普通 View 渲染，避免动画/绝对定位在部分机型上不显示） */
   const showHint = useCallback(() => {
-    AccessibilityInfo.announceForAccessibility(FUTURE_HINT);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     setHint(FUTURE_HINT);
-    hintOpacity.stopAnimation();
-    hintOpacity.setValue(0);
-    Animated.timing(hintOpacity, { toValue: 1, duration: 150, useNativeDriver: true }).start();
     if (hintTimer.current) clearTimeout(hintTimer.current);
-    hintTimer.current = setTimeout(() => {
-      Animated.timing(hintOpacity, { toValue: 0, duration: 250, useNativeDriver: true })
-        .start(({ finished }) => { if (finished) setHint(null); });
-    }, 1600);
-  }, [hintOpacity]);
+    hintTimer.current = setTimeout(() => setHint(null), 1000);
+    try {
+      AccessibilityInfo.announceForAccessibility(FUTURE_HINT);
+    } catch {}
+  }, []);
 
   useEffect(() => () => { if (hintTimer.current) clearTimeout(hintTimer.current); }, []);
 
@@ -112,8 +109,7 @@ export default function MonthSwitcher({ month, onChange }: Props) {
             hitSlop={8}
             accessibilityRole="button"
             accessibilityLabel="下一个月"
-            accessibilityHint="已到本月，未来月份不可查看"
-            accessibilityState={{ disabled: isCurrentMonth(month) }}>
+            accessibilityHint="已到本月，未来月份不可查看">
             <ChevronRight size={22} color={isCurrentMonth(month) ? c.disabled : c.textSecondary} />
           </TouchableOpacity>
         </View>
@@ -124,10 +120,11 @@ export default function MonthSwitcher({ month, onChange }: Props) {
           </TouchableOpacity>
         )}
         {hint && !visible && (
-          <Animated.View pointerEvents="none" accessibilityLiveRegion="polite"
-            style={[s.hintBubble, s.pageHint, { opacity: hintOpacity }]}>
-            <Text style={s.hintText}>{hint}</Text>
-          </Animated.View>
+          <View pointerEvents="none" style={[s.hintLayer, { top: hintTop - insets.top }]}>
+            <View accessibilityLiveRegion="polite" style={s.hintPill}>
+              <Text style={s.hintText}>{hint}</Text>
+            </View>
+          </View>
         )}
       </View>
 
@@ -161,8 +158,7 @@ export default function MonthSwitcher({ month, onChange }: Props) {
                 hitSlop={10}
                 accessibilityRole="button"
                 accessibilityLabel="下一年"
-                accessibilityHint="未来年份不可查看"
-                accessibilityState={{ disabled: viewYear >= currentYear }}>
+                accessibilityHint="未来年份不可查看">
                 <ChevronRight size={20} color={viewYear >= currentYear ? c.disabled : c.textSecondary} />
               </TouchableOpacity>
             </View>
@@ -181,7 +177,7 @@ export default function MonthSwitcher({ month, onChange }: Props) {
                       onPress={() => isFuture ? showHint() : selectMonth(m)}
                       style={[s.monthItem, active && s.monthItemActive, isFuture && s.monthItemDisabled]}
                       accessibilityRole="button"
-                      accessibilityState={{ selected: active, disabled: isFuture }}
+                      accessibilityState={{ selected: active }}
                       accessibilityHint={isFuture ? '未来月份不可查看' : undefined}
                       accessibilityLabel={`${viewYear}年${no}月${isNow ? '，本月' : ''}${hasRecords ? '，有记录' : ''}${isFuture ? '，未来月份' : ''}`}>
                       <Text style={[s.monthNum, active && s.monthNumActive, isFuture && s.monthNumDisabled]}>{no}月</Text>
@@ -195,13 +191,14 @@ export default function MonthSwitcher({ month, onChange }: Props) {
                 })}
               </View>
             </ScrollView>
-            {hint && visible && (
-              <Animated.View pointerEvents="none" accessibilityLiveRegion="polite"
-                style={[s.hintBubble, { opacity: hintOpacity, bottom: Math.max(insets.bottom, spacing.lg) + spacing.md }]}>
-                <Text style={s.hintText}>{hint}</Text>
-              </Animated.View>
-            )}
           </Pressable>
+          {hint && visible && (
+            <View pointerEvents="none" style={[s.hintLayer, { top: hintTop }]}>
+              <View accessibilityLiveRegion="polite" style={s.hintPill}>
+                <Text style={s.hintText}>{hint}</Text>
+              </View>
+            </View>
+          )}
         </Pressable>
       </Modal>
     </>
@@ -215,9 +212,9 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   title: { fontSize: 18, fontWeight: '600', color: c.text },
   backBtn: { alignSelf: 'center', marginBottom: spacing.sm, backgroundColor: c.primarySoftBg, paddingHorizontal: spacing.lg, paddingVertical: 6, borderRadius: radius.pill },
   backBtnText: { fontSize: fontSize.md, color: c.primaryText, fontWeight: '500' },
-  rootRaised: { zIndex: 20, elevation: 8 }, // 让页头下方的提示条盖住后面的卡片/搜索框
-  hintBubble: { position: 'absolute', alignSelf: 'center', zIndex: 20, backgroundColor: c.text, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radius.pill, elevation: 3, shadowColor: '#0f172a', shadowOpacity: 0.18, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
-  pageHint: { top: 46 },
+  rootRaised: { zIndex: 20, elevation: 8 }, // 让悬浮提示盖住后面的卡片/搜索框
+  hintLayer: { position: 'absolute', left: 0, right: 0, alignItems: 'center', zIndex: 20, elevation: 12 },
+  hintPill: { backgroundColor: `${c.text}B8`, paddingHorizontal: spacing.lg, paddingVertical: 6, borderRadius: radius.pill, elevation: 3, shadowColor: '#0f172a', shadowOpacity: 0.18, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
   hintText: { fontSize: fontSize.md, color: c.background, fontWeight: '500' },
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
   modal: { backgroundColor: c.card, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, width: '100%', maxWidth: 480, alignSelf: 'center', maxHeight: '85%' },
