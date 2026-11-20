@@ -8,11 +8,17 @@
 #   build-apk.sh --log /tmp/apk-build.log     # 指定构建日志路径
 #   build-apk.sh --arch all                   # 打全部 ABI（默认只打 arm64-v8a，体积约减 65MB）
 #   build-apk.sh --arch arm64-v8a,armeabi-v7a # 兼容 32 位老设备
+#   build-apk.sh --keep-metro                 # 构建前不停 Expo dev server（默认会停）
+#   build-apk.sh --use-daemon                 # 保留 Gradle 守护进程（默认 --no-daemon）
 set -uo pipefail
 
 # ---------- 默认值 / 环境事实（本机） ----------
 PROJECT="${SMART_LEDGER_HOME:-$HOME/Desktop/ai开发/smart-ledger}"
-NODE_DIR="/tmp/pw/playwright/driver"          # node 不在 PATH，需显式前缀
+NODE_DIR="/tmp/pw/playwright/driver"          # node 不在 PATH，需显式前缀（旧位置）
+# 本机 node 曾迁移：优先 /tmp 旧路径，其次 ~/.local/node/bin
+if [[ ! -x "$NODE_DIR/node" && -x "$HOME/.local/node/bin/node" ]]; then
+  NODE_DIR="$HOME/.local/node/bin"
+fi
 JAVA_HOME_DIR="/home/lenovo/Android/jdk21"    # AGP 8.5 需要 JDK 21
 ANDROID_SDK="$HOME/Android"
 MIRROR_BASE="https://maven.aliyun.com/repository/google"   # dl.google.com 不可达时的兜底
@@ -23,6 +29,8 @@ EXPECT=""
 FORBID=""
 ITERATIONS=3
 LOG="/tmp/apk-build.log"
+KEEP_METRO=0   # 默认构建前停掉 Expo dev server/Metro，避免与本机 16G 内存争抢
+USE_DAEMON=0   # 默认 --no-daemon，构建结束立即释放 JVM
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -32,13 +40,60 @@ while [[ $# -gt 0 ]]; do
     --forbid)     FORBID="$2";  shift 2 ;;
     --iterations) ITERATIONS="$2"; shift 2 ;;
     --log)        LOG="$2";     shift 2 ;;
-    -h|--help)    sed -n '1,12p' "$0"; exit 0 ;;
+    --keep-metro) KEEP_METRO=1; shift ;;
+    --use-daemon) USE_DAEMON=1; shift ;;
+    -h|--help)    sed -n '1,16p' "$0"; exit 0 ;;
     *) echo "未知参数: $1"; exit 1 ;;
   esac
 done
 
 fail() { echo "❌ $*" >&2; exit 1; }
 info() { echo "• $*"; }
+
+# 停掉 Expo dev server / Metro（node），避免构建时抢内存/CPU
+# 本机没有 ss，按进程名扫描；node 进程的 comm 在某些环境下显示为 MainThread
+stop_metro() {
+  local pids="" pid cmd comm alive i killed=()
+  if command -v ss >/dev/null 2>&1; then
+    pids=$(ss -ltnp 2>/dev/null | awk '$4 ~ /:(8081|8083|19000|19001)$/ {print}' \
+           | grep -oE 'pid=[0-9]+' | cut -d= -f2 | sort -u)
+  fi
+  if [[ -z "$pids" ]]; then
+    for pid in $(pgrep -f "expo/bin/cli|@expo/cli|node_modules/.bin/expo|metro" 2>/dev/null); do
+      comm=$(ps -o comm= -p "$pid" 2>/dev/null)
+      [[ "$comm" == "node" || "$comm" == "MainThread" ]] || continue
+      pids+="$pid "
+    done
+    pids=$(echo $pids | tr ' ' '\n' | sort -u)
+  fi
+  if [[ -z "$pids" ]]; then
+    info "未发现 Metro/Expo dev server"
+    return 0
+  fi
+  for pid in $pids; do
+    cmd=$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null)
+    if [[ "$cmd" == *expo* || "$cmd" == *metro* ]]; then
+      info "停止 Expo dev server (pid=$pid)"
+      if kill -TERM "$pid" 2>/dev/null; then killed+=("$pid"); fi
+    fi
+  done
+  if [[ ${#killed[@]} -eq 0 ]]; then
+    info "未发现 Metro/Expo dev server"
+    return 0
+  fi
+  for i in $(seq 1 10); do
+    alive=0
+    for pid in "${killed[@]}"; do kill -0 "$pid" 2>/dev/null && alive=1; done
+    [[ "$alive" == 0 ]] && break
+    sleep 1
+  done
+  for pid in "${killed[@]}"; do
+    if kill -0 "$pid" 2>/dev/null; then
+      info "强制结束 pid=$pid"
+      kill -KILL "$pid" 2>/dev/null || true
+    fi
+  done
+}
 
 # ---------- 1. 环境检查 ----------
 [[ -x "$NODE_DIR/node" ]]          || fail "Node 不存在: $NODE_DIR/node（本机 node 位于此处）"
@@ -59,7 +114,17 @@ else
   info "仓库镜像已就绪"
 fi
 
-# ---------- 3. 预取缺失 artifact（curl 比 Gradle 更能扛 DNS 闪断） ----------
+# ---------- 3. 预清理：旧 Gradle 守护进程 + Expo dev server ----------
+# 本机 16G 内存，多个 -Xmx2g 守护进程与 Metro 同时驻留会触发 swap 抖动（构建曾 21 分钟且整机卡）
+info "停止已有 Gradle 守护进程"
+JAVA_HOME="$JAVA_HOME_DIR" PATH="$NODE_DIR:$PATH" "$PROJECT/android/gradlew" --stop >/dev/null 2>&1 || true
+if [[ "$KEEP_METRO" == 0 ]]; then
+  stop_metro
+else
+  info "保留 Metro/Expo dev server（--keep-metro）"
+fi
+
+# ---------- 4. 预取缺失 artifact（curl 比 Gradle 更能扛 DNS 闪断） ----------
 seed_one() {  # group artifact version file
   local g="$1" a="$2" v="$3" f="$4"
   local rel="${g//./\/}/$a/$v/$f"
@@ -111,10 +176,12 @@ if [[ "$ARCH" != "all" ]]; then
   ARCH_ARGS=("-PreactNativeArchitectures=$ARCH")
   info "ABI 过滤: $ARCH（省略其它架构的原生库）"
 fi
+DAEMON_ARGS=("--no-daemon")   # 构建结束立即释放 JVM，避免守护进程长期占内存
+[[ "$USE_DAEMON" == 1 ]] && DAEMON_ARGS=() && info "使用 Gradle 守护进程（--use-daemon）"
 BUILD_OK=0
 for attempt in $(seq 1 "$ITERATIONS"); do
   info "构建 attempt $attempt/$ITERATIONS (variant=$VARIANT)"
-  JAVA_HOME="$JAVA_HOME_DIR" PATH="$NODE_DIR:$PATH" ./gradlew "assemble$VARIANT" "${ARCH_ARGS[@]}" --console=plain > "$LOG" 2>&1
+  JAVA_HOME="$JAVA_HOME_DIR" PATH="$NODE_DIR:$PATH" ./gradlew "assemble$VARIANT" "${ARCH_ARGS[@]}" "${DAEMON_ARGS[@]}" --console=plain > "$LOG" 2>&1
   if grep -q "BUILD SUCCESSFUL" "$LOG"; then BUILD_OK=1; break; fi
   if grep -qE "Could not download|Could not HEAD" "$LOG"; then
     info "网络/artifact 下载失败，预取后重试"

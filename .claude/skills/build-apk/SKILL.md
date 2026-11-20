@@ -14,23 +14,25 @@ description: 把 SmartLedger（Expo SDK 57 / RN 0.86）本地打包成独立可�
 - **默认只打 arm64-v8a**（脚本传 `-PreactNativeArchitectures=arm64-v8a`），APK 约 45MB；四架构全打约 110MB。真机几乎全是 arm64。需兼容 32 位老设备时用 `--arch arm64-v8a,armeabi-v7a`；需 x86 模拟器或全架构用 `--arch all`。
 - 产物路径：`android/app/build/outputs/apk/release/app-release.apk`
 - release 使用 debug 证书签名（`android/app/build.gradle` 的 `release { signingConfig signingConfigs.debug }`），可直接「未知来源」安装，无需自备 keystore。
+- **控制内存峰值**：本机 16G 内存会因构建卡顿（实测 release 构建 21 分钟且整机卡）。脚本默认在构建前 `./gradlew --stop`、停掉 Expo dev server，并用 `--no-daemon`；`gradle.properties` 已设 `org.gradle.parallel=false` 与 `org.gradle.workers.max=4`。需要保留 Metro 或守护进程时用 `--keep-metro` / `--use-daemon`。
 
 ## 本机环境事实（重要）
 
 | 项 | 值 | 说明 |
 |---|---|---|
 | JDK | `/home/lenovo/Android/jdk21` | AGP 8.5 不兼容系统 JDK 26，必须用 21。已写入 `android/gradle.properties` 的 `org.gradle.java.home`；但 `gradlew` 启动仍需显式设 `JAVA_HOME` |
-| Node | `/tmp/pw/playwright/driver/node`（v24） | 不在 PATH。gradle react 插件与 `export:embed` 都要调用 `node`，构建时须前置 PATH |
+| Node | `~/.local/node/bin/node`（v24；旧路径 `/tmp/pw/playwright/driver/node` 已不存在） | 不在 PATH。gradle react 插件与 `export:embed` 都要调用 `node`，构建时须前置 PATH。脚本已自动探测两处 |
 | Android SDK | `/home/lenovo/Android` | 已写入 `android/local.properties` (`sdk.dir`) |
 | Gradle | wrapper 9.3.1（已缓存） | 用 `./gradlew`，勿直接调 `gradle` |
 | **网络** | `dl.google.com` DNS 不可达 | Google Maven artifact 无法从官方源下载 |
 | **网络** | `maven.aliyun.com` 可用但构建期 DNS 间歇闪断 | 长构建中偶发 "Name or service not known" |
+| **内存** | 15.9GB RAM + 16GB swap | 构建叠加 3 个 Gradle 守护进程、Kotlin 守护进程、16 路 clang、Hermes node、aapt2，峰值超过物理内存 → swap 抖动、整机卡顿。脚本已默认降并发/停 Metro/`--no-daemon` |
 
 ## 标准流程
 
 ### 1. 环境检查
 ```bash
-[[ -x /tmp/pw/playwright/driver/node ]] && echo ok
+[[ -x ~/.local/node/bin/node ]] && echo ok   # 或旧路径 /tmp/pw/playwright/driver/node
 [[ -x /home/lenovo/Android/jdk21/bin/java ]] && echo ok
 [[ -d android ]] && echo ok
 ```
@@ -44,13 +46,18 @@ maven { url 'https://maven.aliyun.com/repository/google' }
 
 > 顺序即一切：镜像放前面会导致 Gradle 对所有已缓存模块重新归因并触发全量网络校验（上次因此多跑 30 分钟并踩 DNS 闪断）。放最后则只对真正缺失的 Google artifact 生效。
 
-### 3. 构建
+### 3. 构建（先清理内存占用）
 ```bash
 cd android
-JAVA_HOME=/home/lenovo/Android/jdk21 PATH=/tmp/pw/playwright/driver:$PATH ./gradlew assembleRelease --console=plain
+JAVA_HOME=/home/lenovo/Android/jdk21 PATH=~/.local/node/bin:$PATH ./gradlew --stop   # 释放旧守护进程
+# 停掉 Expo dev server / Metro（占用 1GB+，与本构建争内存）
+JAVA_HOME=/home/lenovo/Android/jdk21 PATH=~/.local/node/bin:$PATH \
+  ./gradlew assembleRelease --no-daemon --console=plain
 ```
-- 用 `run_in_background` 跑，日志写到 `/tmp/apk-build.log`，轮询检查；构建约 5-10 分钟。
-- 初次构建需要为 release 变体重新编译 CMake 原生模块（4 架构），无法复用 debug 缓存。
+- 一键脚本已自动完成上述两步（`--stop` + 停 Metro），并传 `--no-daemon`。
+- `gradle.properties` 已设 `org.gradle.parallel=false`、`org.gradle.workers.max=4`，避免 16 线程 + 多 JVM 打满内存。
+- 用 `run_in_background` 跑，日志写到 `/tmp/apk-build.log`；正常约 5-10 分钟。内存受控后可避免实测出现的 21 分钟 + 整机卡顿。
+- 初次构建需要为 release 变体重新编译 CMake 原生模块（当前只打 arm64-v8a），无法复用 debug 缓存。
 
 ### 4. 失败自动处理（脚本已内置，手动构建时参考）
 - **`Could not download X (group:artifact:version)`**：该 jar 不在 Gradle 缓存且 dl.google.com 不可达。用 curl 从 aliyun 预取并塞进缓存（Gradle 缓存按 `files-2.1/<group>/<artifact>/<version>/<sha1>/<file>` 存放，sha1 为文件内容 sha1），然后重试。
@@ -74,6 +81,8 @@ JAVA_HOME=/home/lenovo/Android/jdk21 PATH=/tmp/pw/playwright/driver:$PATH ./grad
 .claude/skills/build-apk/scripts/build-apk.sh \
   --expect "api.deepseek.com" \
   --forbid "localhost:11434,qwen2.5"
+# 保留 Metro / Gradle 守护进程（默认都会被停用）
+.claude/skills/build-apk/scripts/build-apk.sh --keep-metro --use-daemon
 ```
 脚本自动执行：环境检查 → 镜像兜底 → 构建（失败自动预取缺失 artifact 并重试，默认 3 轮）→ 产物定位 → bundle/标记/签名校验。
 
