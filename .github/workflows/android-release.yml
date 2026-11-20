@@ -1,0 +1,143 @@
+name: Android Release APK
+
+# 手动触发：仓库 Actions 页 → Android Release APK → Run workflow
+# 打 tag 自动触发：git tag v1.7.0 && git push origin v1.7.0
+on:
+  workflow_dispatch:
+    inputs:
+      arch:
+        description: 'ABI 架构（all = 四架构通用包，体积约 110MB）'
+        type: choice
+        options:
+          - arm64-v8a
+          - arm64-v8a,armeabi-v7a
+          - all
+        default: arm64-v8a
+      publish_release:
+        description: '构建后发布 GitHub Release（tag: v<app.json version>）'
+        type: boolean
+        default: false
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NDK_VERSION: '27.1.12297006'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost \
+                      "$ANDROID_HOME/system-images"
+          # 只保留构建所需的 NDK 版本，删掉镜像里预装的其它版本
+          if [ -d "$ANDROID_HOME/ndk" ]; then
+            for d in "$ANDROID_HOME"/ndk/*; do
+              [ "$(basename "$d")" = "$NDK_VERSION" ] || sudo rm -rf "$d"
+            done
+          fi
+          df -h / && free -h
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare CI config
+        id: meta
+        run: |
+          # 移除只存在于本机的 JDK 路径（否则 runner 上找不到 /home/lenovo/...）
+          sed -i '/^org\.gradle\.java\.home=/d; /^org\.gradle\.java\.installations\.paths=/d' android/gradle.properties
+          VERSION=$(node -p "require('./app.json').expo.version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "APK 版本: $VERSION" && node -v && java -version 2>&1 | head -1
+
+      - name: Ensure NDK / CMake
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          MISSING=()
+          [ -d "$ANDROID_HOME/ndk/$NDK_VERSION" ] || MISSING+=("ndk;$NDK_VERSION")
+          [ -d "$ANDROID_HOME/cmake/3.22.1" ]      || MISSING+=("cmake;3.22.1")
+          if [ ${#MISSING[@]} -gt 0 ]; then
+            echo "安装: ${MISSING[*]}"
+            yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+            "$SDKMANAGER" "${MISSING[@]}" >/dev/null
+          fi
+          echo "NDK: $(ls "$ANDROID_HOME/ndk")"
+          echo "CMake: $(ls "$ANDROID_HOME/cmake")"
+
+      - name: Build release APK
+        working-directory: android
+        run: |
+          ARCH="${{ github.event.inputs.arch || 'arm64-v8a' }}"
+          chmod +x gradlew
+          # gradle.properties 默认 reactNativeArchitectures=arm64-v8a，
+          # 显式传入才能覆盖；all 需展开为四架构
+          [ "$ARCH" = "all" ] && ARCH="armeabi-v7a,arm64-v8a,x86,x86_64"
+          ./gradlew assembleRelease -PreactNativeArchitectures="$ARCH" --no-daemon --stacktrace
+
+      - name: Verify and collect artifact
+        run: |
+          VERSION="${{ steps.meta.outputs.version }}"
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+          test -f "$APK"
+          unzip -l "$APK" | grep -F "assets/index.android.bundle" >/dev/null \
+            && echo "✓ JS bundle 已内嵌" || { echo "✗ 未内嵌 JS bundle"; exit 1; }
+          APKSIGNER=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --print-certs "$APK" | head -3
+          cp "$APK" "SmartLedger-v${VERSION}.apk"
+          sha256sum "SmartLedger-v${VERSION}.apk" | tee SmartLedger.apk.sha256
+          ls -lh "SmartLedger-v${VERSION}.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SmartLedger-v${{ steps.meta.outputs.version }}-${{ github.run_number }}
+          path: |
+            SmartLedger-v*.apk
+            SmartLedger.apk.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish GitHub Release
+        if: github.ref_type == 'tag' || github.event.inputs.publish_release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.meta.outputs.version }}"
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            TAG="${{ github.ref_name }}"
+          else
+            TAG="v${VERSION}"
+          fi
+          NOTES="SmartLedger v${VERSION} Android 安装包（debug 签名，可侧载安装）。SHA256 见 SmartLedger.apk.sha256。"
+          ASSETS=("SmartLedger-v${VERSION}.apk" SmartLedger.apk.sha256)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${ASSETS[@]}" --clobber
+          elif git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" "${ASSETS[@]}" --title "SmartLedger $TAG" --notes "$NOTES"
+          else
+            gh release create "$TAG" "${ASSETS[@]}" --title "SmartLedger $TAG" --notes "$NOTES" \
+              --target "$GITHUB_SHA"
+          fi

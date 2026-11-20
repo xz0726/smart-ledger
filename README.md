@@ -75,6 +75,12 @@ android/       原生工程（通知监听等手工定制）
 
 更完整的目录说明见 [应用介绍.md](应用介绍.md#项目结构)。
 
+## 打包 APK
+
+推荐用 GitHub Actions 构建（公开仓库免费）：在仓库 **Actions → Android Release APK → Run workflow** 手动触发，产物在该次运行的 Artifacts 中下载；也可推一个 `v*` tag 自动构建并发布 Release。
+
+本地构建见 [.claude/skills/build-apk](.claude/skills/build-apk/)（含本机 JDK/SDK/镜像适配）。
+
 ## 测试
 
 ```bash
