@@ -214,6 +214,15 @@ export async function getExpenses(params: {
   return { data: list.slice(start, start + pageSize).map(withCategory), total };
 }
 
+/** 有账单记录的月份列表（YYYY-MM，升序），与 db.ts 同名同签名 */
+export async function getExpenseMonths(): Promise<string[]> {
+  const months = new Set<string>();
+  for (const e of expenses) {
+    if (/^\d{4}-\d{2}-/.test(e.expense_date)) months.add(e.expense_date.slice(0, 7));
+  }
+  return [...months].sort();
+}
+
 export async function deleteExpense(id: number): Promise<void> {
   const i = expenses.findIndex(e => e.id === id);
   if (i >= 0) expenses.splice(i, 1);

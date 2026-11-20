@@ -60,6 +60,11 @@ export function getRecentMonths(endMonth: string = getCurrentMonth(), count = 12
   return out;
 }
 
+/** 某年的 12 个月（YYYY-MM，升序） */
+export function getMonthsInYear(year: number): string[] {
+  return Array.from({ length: 12 }, (_, i) => `${year}-${(i + 1).toString().padStart(2, '0')}`);
+}
+
 export function getMonthRange(month: string): { start: string; end: string } {
   const [year, m] = month.split('-').map(Number);
   const lastDay = new Date(year, m, 0).getDate();

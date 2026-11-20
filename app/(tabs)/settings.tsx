@@ -16,6 +16,7 @@ import RuleManager from '../../src/components/RuleManager';
 import { getExpenses, getCategories, addExpense, exportAllData, importAllData } from '../../src/services/db';
 import { shareTextFile, readPickedFile } from '../../src/services/nativeActions';
 import { getCurrentMonth } from '../../src/utils/format';
+import { APP_VERSION } from '../../src/constants/app';
 import { spacing, radius, fontSize } from '../../src/theme/spacing';
 
 const THEME_OPTIONS: { key: ThemePreference; label: string }[] = [
@@ -192,7 +193,7 @@ export default function Settings() {
           <View style={st.card}>
             <CardTitle icon={Smartphone} text="关于" />
             <Text style={{ fontSize: fontSize.base, color: c.text }}>智记账</Text>
-            <Text style={{ fontSize: fontSize.sm, color: c.textSecondary, marginTop: spacing.xs }}>版本 1.6.0</Text>
+            <Text style={{ fontSize: fontSize.sm, color: c.textSecondary, marginTop: spacing.xs }}>版本 {APP_VERSION || '未知'}</Text>
             <Text style={{ fontSize: fontSize.sm, color: c.textSecondary, marginTop: spacing.sm }}>智能记账，轻松管理每一笔消费。
 {'\n'}· 自然语言记账：「午饭花了35元」自动入账
 {'\n'}· 规则引擎 + AI 分类，中文金额（两万/三块五）也认识

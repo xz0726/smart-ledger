@@ -6,6 +6,7 @@ import { cardShadow, useThemeColors, type ThemeColors } from '../../src/theme';
 import { QR_IMAGES, type QrKey } from '../../src/constants/support';
 import { shareAssetFile } from '../../src/services/nativeActions';
 import { Heart, QrCode } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CardTitle from '../../src/components/CardTitle';
 import { spacing, radius, fontSize } from '../../src/theme/spacing';
 
@@ -23,9 +24,11 @@ export default function Donate() {
   const [preview, setPreview] = useState<QrKey | null>(null);
   const c = useThemeColors();
   const st = useMemo(() => createStyles(c), [c]);
+  const insets = useSafeAreaInsets();
 
   return (
-    <ScrollView style={st.safe} contentContainerStyle={st.content}>
+    <ScrollView style={st.safe}
+      contentContainerStyle={[st.content, { paddingBottom: spacing.xl + insets.bottom }]}>
       {/* 感谢文案 */}
       <View style={st.card}>
         <CardTitle icon={Heart} text="感谢支持" />

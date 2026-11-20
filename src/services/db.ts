@@ -306,6 +306,17 @@ export async function getExpenses(params: {
   return { data: rows, total };
 }
 
+/** 有账单记录的月份列表（YYYY-MM，升序），供月份选择器打点 */
+export async function getExpenseMonths(): Promise<string[]> {
+  const rows = getDb().getAllSync<{ month: string }>(
+    `SELECT DISTINCT substr(expense_date, 1, 7) AS month
+       FROM expenses
+      WHERE expense_date LIKE '____-__-__'
+      ORDER BY month ASC`
+  );
+  return rows.map(r => r.month);
+}
+
 export async function deleteExpense(id: number): Promise<void> {
   const database = getDb();
   database.runSync('DELETE FROM expenses WHERE id = ?', [id]);

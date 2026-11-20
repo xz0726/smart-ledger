@@ -4,6 +4,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import * as Linking from 'expo-linking';
 import { Copy, Users, Megaphone, MessagesSquare } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CardTitle from '../../src/components/CardTitle';
 import { cardShadow, useThemeColors, type ThemeColors } from '../../src/theme';
 import { SUPPORT, mqqGroupUrl } from '../../src/constants/support';
@@ -34,9 +35,10 @@ const openQqGroup = async () => {
 export default function Contact() {
   const c = useThemeColors();
   const st = useMemo(() => createStyles(c), [c]);
+  const insets = useSafeAreaInsets();
 
   return (
-    <ScrollView style={st.safe}>
+    <ScrollView style={st.safe} contentContainerStyle={{ paddingBottom: insets.bottom }}>
       {/* 群简介 */}
       <View style={st.card}>
         <CardTitle icon={Megaphone} text="群简介" />

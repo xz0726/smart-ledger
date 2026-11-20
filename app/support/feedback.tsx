@@ -4,11 +4,12 @@ import {
   KeyboardAvoidingView, Platform, StyleSheet,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import Constants from 'expo-constants';
 import { Send, Bookmark, PenLine, Mail } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CardTitle from '../../src/components/CardTitle';
 import { cardShadow, useThemeColors, type ThemeColors } from '../../src/theme';
 import { SUPPORT } from '../../src/constants/support';
+import { APP_VERSION } from '../../src/constants/app';
 import { composeMail } from '../../src/services/nativeActions';
 import { spacing, radius, fontSize } from '../../src/theme/spacing';
 
@@ -22,6 +23,7 @@ export default function Feedback() {
   const [submitting, setSubmitting] = useState(false);
   const c = useThemeColors();
   const st = useMemo(() => createStyles(c), [c]);
+  const insets = useSafeAreaInsets();
 
   const submitFeedback = async () => {
     const body = content.trim();
@@ -35,7 +37,7 @@ export default function Feedback() {
       const mailBody = [
         `反馈类型：${type}`,
         `联系方式：${contact.trim() || '（未填写）'}`,
-        `App 版本：${Constants.expoConfig?.version ?? '未知'}`,
+        `App 版本：${APP_VERSION || '未知'}`,
         '',
         body,
       ].join('\n');
@@ -63,7 +65,8 @@ export default function Feedback() {
 
   return (
     <KeyboardAvoidingView style={st.flex1} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView style={st.flex1} keyboardShouldPersistTaps="handled" contentContainerStyle={st.content}>
+      <ScrollView style={st.flex1} keyboardShouldPersistTaps="handled"
+        contentContainerStyle={[st.content, { paddingBottom: spacing.xl + insets.bottom }]}>
         {/* 反馈类型 */}
         <View style={st.card}>
           <CardTitle icon={Bookmark} text="反馈类型" />
