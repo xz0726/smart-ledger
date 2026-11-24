@@ -1,5 +1,23 @@
-import { TextDecoder } from 'text-encoding';
 import type { BillSource } from '../../types';
+
+/**
+ * Expo SDK 57 的 winter runtime 会先安装一个仅支持 UTF-8 的全局 TextDecoder；
+ * text-encoding 导出的是 global['TextDecoder']（已存在的那个），因此 gb18030 不可用。
+ * 这里在首次加载 polyfill 前临时摘掉全局，拿到完整实现后再恢复。
+ */
+type BillTextDecoder = { decode(input: Uint8Array): string };
+const globalScope = globalThis as any;
+const expoGlobalTextDecoder = globalScope.TextDecoder;
+let textEncodingPolyfill: any;
+if (expoGlobalTextDecoder) delete globalScope.TextDecoder;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  textEncodingPolyfill = require('text-encoding');
+} finally {
+  if (expoGlobalTextDecoder) globalScope.TextDecoder = expoGlobalTextDecoder;
+}
+const PolyfillTextDecoder: new (label?: string, options?: { fatal?: boolean }) => BillTextDecoder =
+  textEncodingPolyfill.TextDecoder;
 import { parseCsv, findCsvHeader, alignCsvRow, detectSourceFromHeader } from './csv';
 import { readXlsxRows } from './xlsx';
 import { transactionFromRow, filterTransactions, extractHeadline } from './normalize';
@@ -11,12 +29,12 @@ function hasZipMagic(bytes: Uint8Array): boolean {
 
 export function decodeBillText(bytes: Uint8Array): string {
   if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
-    return new TextDecoder('utf-8').decode(bytes.subarray(3));
+    return new PolyfillTextDecoder('utf-8').decode(bytes.subarray(3));
   }
   try {
-    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    return new PolyfillTextDecoder('utf-8', { fatal: true }).decode(bytes);
   } catch {
-    return new TextDecoder('gb18030').decode(bytes);
+    return new PolyfillTextDecoder('gb18030').decode(bytes);
   }
 }
 
