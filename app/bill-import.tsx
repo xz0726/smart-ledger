@@ -932,7 +932,11 @@ export default function BillImportScreen() {
           {phase === 'importing'
             ? <ActivityIndicator size="small" color="#fff" />
             : <Text style={s.importBtnText}>
-              {selectedRows.length > 0 ? `导入 ${selectedRows.length} 笔` : `冲减 ${selectedRefundRows.length} 笔退款`}
+              {selectedRows.length > 0
+                ? `导入 ${selectedRows.length} 笔`
+                : selectedRefundRows.length > 0
+                  ? `冲减 ${selectedRefundRows.length} 笔退款`
+                  : '没有可导入项'}
             </Text>}
         </TouchableOpacity>
       </View>
