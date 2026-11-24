@@ -15,6 +15,11 @@ export async function readPickedFile(_mimeType: string): Promise<string | null> 
   return null;
 }
 
+export async function pickBillFileBytes(): Promise<{ name: string; bytes: Uint8Array } | null> {
+  Alert.alert('提示', ONLY_NATIVE);
+  return null;
+}
+
 export async function composeMail(_opts: { recipients: string[]; subject: string; body: string }): Promise<void> {
   Alert.alert('提示', ONLY_NATIVE);
 }

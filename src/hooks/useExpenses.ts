@@ -18,7 +18,7 @@ export function useExpenses(month?: string) {
         month: params?.month || month,
         categoryId: params?.categoryId,
         search: params?.search,
-        pageSize: 200,
+        pageSize: 1000,
       });
       setExpenses(result.data);
       setTotal(result.total);

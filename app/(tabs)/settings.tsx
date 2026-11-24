@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { ScrollView, View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Keyboard, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Save, Wifi, Download, Upload, Database, MessageCircle, MessageSquareText, Coffee, Palette, Bot, Folder, Smartphone } from 'lucide-react-native';
+import { Save, Wifi, Download, Upload, Database, MessageCircle, MessageSquareText, Coffee, Palette, Bot, Folder, Smartphone, FileSpreadsheet } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useSettingsStore } from '../../src/stores/settingsStore';
 import { cardShadow, useThemeColors, type ThemeColors, type ThemePreference } from '../../src/theme';
@@ -174,11 +174,14 @@ export default function Settings() {
           {/* 数据管理 */}
           <View style={st.card}>
             <CardTitle icon={Folder} text="数据管理" />
+            <TouchableOpacity style={st.menuItem} onPress={() => router.push('/bill-import')}>
+              <FileSpreadsheet size={18} color={c.primary} /><Text style={st.menuText}>导入微信/支付宝账单</Text><Text style={st.menuHint}>xlsx / csv</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={st.menuItem} onPress={handleExportCSV}>
               <Upload size={18} color={c.primary} /><Text style={st.menuText}>导出 CSV</Text><Text style={st.menuHint}>分享文件</Text>
             </TouchableOpacity>
             <TouchableOpacity style={st.menuItem} onPress={handleImportCSV}>
-              <Download size={18} color={c.primary} /><Text style={st.menuText}>导入 CSV</Text><Text style={st.menuHint}>选择文件</Text>
+              <Download size={18} color={c.primary} /><Text style={st.menuText}>导入智记账 CSV</Text><Text style={st.menuHint}>选择文件</Text>
             </TouchableOpacity>
             <View style={st.divider} />
             <TouchableOpacity style={st.menuItem} onPress={handleBackupJSON}>
@@ -199,6 +202,7 @@ export default function Settings() {
 {'\n'}· 规则引擎 + AI 分类，中文金额（两万/三块五）也认识
 {'\n'}· 一次输入多项，逐条核对再入账
 {'\n'}· 固定收支自动补账、快捷记账一键入账
+{'\n'}· 微信/支付宝账单导入，自动分类与重复识别
 {'\n'}· 自定义分类 / 关键词规则自由管理
 {'\n'}· 趋势图 · 分类占比 · 预算预警 · 深色模式 · 备份恢复</Text>
             <View style={st.divider} />

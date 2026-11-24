@@ -1,5 +1,7 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { View, TextInput, TouchableOpacity, Text, ActivityIndicator, Alert, StyleSheet, Keyboard, Animated, Platform, Dimensions } from 'react-native';
+import React, { useState, useRef, useMemo } from 'react';
+import { View, TextInput, TouchableOpacity, Text, ActivityIndicator, Alert, StyleSheet, Keyboard, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardStickyView } from './KeyboardCompat';
 import { Send } from 'lucide-react-native';
 import { useThemeColors, type ThemeColors } from '../theme';
 import type { AIConfig, ParsedExpense } from '../types';
@@ -7,7 +9,7 @@ import { parseWithRules } from '../services/ruleEngine';
 import { loadAIConfig, parseWithAI } from '../services/ai';
 import { getCategories, getCustomRules } from '../services/db';
 import ParsePreviewModal from './ParsePreviewModal';
-import { spacing, radius, fontSize } from '../theme/spacing';
+import { spacing, radius, fontSize, TAB_BAR_CONTENT_HEIGHT } from '../theme/spacing';
 
 interface Props {
   onAddExpense: (amount: number, categoryId: number, date: string, description?: string, rawInput?: string) => Promise<void>;
@@ -42,38 +44,15 @@ async function reclassifyOthers(items: ParsedExpense[], fallbackInput: string): 
 export default function InputBar({ onAddExpense }: Props) {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
-  const [keyboardPad, setKeyboardPad] = useState(0);
   const [previewItems, setPreviewItems] = useState<ParsedExpense[] | null>(null);
   const inputRef = useRef<TextInput>(null);
-  const wrapRef = useRef<View>(null);
   const c = useThemeColors();
+  const insets = useSafeAreaInsets();
   const s = useMemo(() => createStyles(c), [c]);
 
-  useEffect(() => {
-    const showSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      e => {
-        const kb = e.endCoordinates.height;
-        // edge-to-edge（SDK 53+ 默认，Expo Go 与 APK 均是）下 adjustResize 不缩窗，
-        // 键盘直接覆盖在窗口之上 → 输入条必须自行上移。
-        // 仅当窗口真的因键盘收缩（非 edge-to-edge 构建的原生 adjustResize）时才免补偿。
-        const winH = Dimensions.get('window').height;
-        const screenH = Dimensions.get('screen').height;
-        if (screenH - winH >= kb * 0.5) { setKeyboardPad(0); return; }
-        // 补偿量 = 键盘高 − 输入条下沿到窗口底的距离（= tab 栏高 + 底部安全区），
-        // 使输入条恰好落在键盘上沿（全量补偿会多出 tab 栏高度的空白）。
-        wrapRef.current?.measureInWindow((_x, y, _w, h) => {
-          const distToBottom = winH - (y + h);
-          setKeyboardPad(Math.max(0, kb - distToBottom));
-        });
-      }
-    );
-    const hideSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardPad(0)
-    );
-    return () => { showSub.remove(); hideSub.remove(); };
-  }, []);
+  // 输入条位于 Tab 栏之上，所以只需抵消「键盘遮挡高度 − Tab 栏总高」。
+  // 键盘高度由 keyboard-controller 原生读取 IME inset（内含导航栏处理），三键/手势导航都正确。
+  const tabBarHeight = TAB_BAR_CONTENT_HEIGHT + insets.bottom;
 
   /** 把解析结果逐条写入账本（按分类名找 category_id，找不到降级「其他」/首分类） */
   const writeItems = async (items: ParsedExpense[], fallbackRawInput: string) => {
@@ -122,22 +101,24 @@ export default function InputBar({ onAddExpense }: Props) {
   };
 
   return (
-    <View ref={wrapRef} style={[s.wrap, { paddingBottom: keyboardPad }]}>
-      <View style={s.bar}>
-        <View style={s.inputWrap}>
-          <TextInput ref={inputRef} style={s.input} placeholder="输入消费，如：午饭花了35元"
-            placeholderTextColor={c.hint} value={text} onChangeText={setText}
-            onSubmitEditing={handleSubmit} returnKeyType="send" editable={!loading} />
+    <KeyboardStickyView offset={{ closed: 0, opened: tabBarHeight }}>
+      <View style={s.wrap}>
+        <View style={s.bar}>
+          <View style={s.inputWrap}>
+            <TextInput ref={inputRef} style={s.input} placeholder="输入消费，如：午饭花了35元"
+              placeholderTextColor={c.hint} value={text} onChangeText={setText}
+              onSubmitEditing={handleSubmit} returnKeyType="send" editable={!loading} />
+          </View>
+          {loading ? <ActivityIndicator size="small" color={c.primary} style={{ marginLeft: spacing.md }} /> :
+            <TouchableOpacity onPress={handleSubmit} disabled={!text.trim()}
+              style={[s.sendBtn, { backgroundColor: text.trim() ? c.primary : c.disabled }]}>
+              <Send size={18} color="white" />
+            </TouchableOpacity>}
         </View>
-        {loading ? <ActivityIndicator size="small" color={c.primary} style={{ marginLeft: spacing.md }} /> :
-          <TouchableOpacity onPress={handleSubmit} disabled={!text.trim()}
-            style={[s.sendBtn, { backgroundColor: text.trim() ? c.primary : c.disabled }]}>
-            <Send size={18} color="white" />
-          </TouchableOpacity>}
+        <ParsePreviewModal visible={previewItems !== null} items={previewItems || []}
+          onConfirm={handleConfirmPreview} onCancel={() => setPreviewItems(null)} />
       </View>
-      <ParsePreviewModal visible={previewItems !== null} items={previewItems || []}
-        onConfirm={handleConfirmPreview} onCancel={() => setPreviewItems(null)} />
-    </View>
+    </KeyboardStickyView>
   );
 }
 

@@ -26,6 +26,27 @@ export async function readPickedFile(mimeType: string): Promise<string | null> {
   return await file.text();
 }
 
+export interface PickedBillFile {
+  name: string;
+  bytes: Uint8Array;
+}
+
+/** 选择微信/支付宝账单文件并按字节读取（xlsx 二进制 / csv 编码都需要原始字节） */
+export async function pickBillFileBytes(): Promise<PickedBillFile | null> {
+  const result = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true });
+  if (result.canceled) return null;
+  const asset = result.assets[0];
+  const file = new File(asset.uri);
+
+  const size = file.size ?? 0;
+  if (size > 20 * 1024 * 1024) {
+    throw new Error('文件超过 20MB，请缩短账单时间范围后再导出');
+  }
+
+  const bytes = await file.bytes();
+  return { name: asset.name || '账单文件', bytes };
+}
+
 /** 调起系统邮件客户端发送反馈 */
 export async function composeMail(opts: { recipients: string[]; subject: string; body: string }): Promise<void> {
   await MailComposer.composeAsync({ ...opts, isHtml: false });

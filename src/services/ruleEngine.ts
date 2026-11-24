@@ -212,22 +212,45 @@ function extractDate(segment: string): string {
   return formatDate(today);
 }
 
-function parseSegment(segment: string, amount: number, customRules?: CustomRule[]): ParsedExpense {
-  // 分类：自定义规则优先，其次内置关键词，默认「其他」
-  let category = '其他';
-  let matched = false;
-  if (customRules && customRules.length > 0) {
-    const hit = customRules.find(r => segment.includes(r.keyword));
-    if (hit) { category = hit.category; matched = true; }
-  }
-  if (!matched) {
-    for (const [keywords, catName] of categoryRules) {
-      if (keywords.some(kw => segment.includes(kw))) {
-        category = catName;
-        break;
-      }
+export interface MatchCategoryOptions {
+  /** 这些分类不参与匹配（账单导入时用于排除收入分类） */
+  excludeCategories?: string[];
+}
+
+/** 只匹配自定义关键词，返回分类名或 null */
+export function matchCustomRule(
+  text: string,
+  customRules?: CustomRule[],
+  options?: MatchCategoryOptions,
+): string | null {
+  if (!customRules || customRules.length === 0) return null;
+  const exclude = new Set(options?.excludeCategories ?? []);
+  const hit = customRules.find(r => !exclude.has(r.category) && text.includes(r.keyword));
+  return hit ? hit.category : null;
+}
+
+/** 通用分类匹配：自定义规则优先，其次内置关键词，默认「其他」 */
+export function matchCategory(
+  text: string,
+  customRules?: CustomRule[],
+  options?: MatchCategoryOptions,
+): { category: string; matched: boolean } {
+  const custom = matchCustomRule(text, customRules, options);
+  if (custom) return { category: custom, matched: true };
+
+  const exclude = new Set(options?.excludeCategories ?? []);
+  for (const [keywords, catName] of categoryRules) {
+    if (exclude.has(catName)) continue;
+    if (keywords.some(kw => text.includes(kw))) {
+      return { category: catName, matched: true };
     }
   }
+  return { category: '其他', matched: false };
+}
+
+function parseSegment(segment: string, amount: number, customRules?: CustomRule[]): ParsedExpense {
+  // 分类：自定义规则优先，其次内置关键词，默认「其他」
+  const { category } = matchCategory(segment, customRules);
 
   // 描述：剥离金额 token 和常见日期词
   let description = segment

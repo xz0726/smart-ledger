@@ -10,6 +10,7 @@ import type {
   Category, Expense, ExpenseWithCategory, Budget, BudgetWithCategory,
   StatsOverview, CategoryStats, DailyTrend, CustomRule, FixedItem,
   FixedItemWithCategory, QuickItemWithCategory, PendingCapture,
+  BillSource, ImportBatch, ImportAdjustment,
 } from '../types';
 import { isCurrentMonth } from '../utils/format';
 
@@ -26,6 +27,9 @@ let nextQuickItemId = 1;
 
 const categories: Category[] = [];
 const expenses: Expense[] = [];
+const importBatches: ImportBatch[] = [];
+const importAdjustments: ImportAdjustment[] = [];
+let nextAdjustmentId = 1;
 const budgets: Budget[] = [];
 const settingsMap = new Map<string, string>();
 const customRules: CustomRule[] = [];
@@ -194,6 +198,202 @@ export async function addExpense(
   };
   expenses.push(e);
   return e.id;
+}
+
+export interface ImportedExpenseInput {
+  amount: number;
+  categoryId: number;
+  expenseDate: string;
+  description: string;
+  rawInput: string;
+  source: BillSource;
+  externalId: string;
+  importBatchId: string;
+}
+
+export interface ImportBatchInput {
+  id: string;
+  source: BillSource;
+  fileName: string;
+  totalRows: number;
+  skippedCount: number;
+}
+
+export interface RefundAdjustmentInput {
+  source: BillSource;
+  refundExternalId: string;
+  expenseId: number;
+  amountCents: number;
+}
+
+export async function insertImportedExpenses(
+  rows: ImportedExpenseInput[],
+  batch: ImportBatchInput,
+  refunds: RefundAdjustmentInput[] = [],
+): Promise<{ inserted: number; skipped: number; adjusted: number }> {
+  let inserted = 0;
+  let adjusted = 0;
+  for (const r of rows) {
+    if (expenses.some(e => e.source === r.source && e.external_id === r.externalId)) continue;
+    expenses.push({
+      id: nextExpenseId++,
+      amount: r.amount,
+      category_id: r.categoryId,
+      description: r.description || null,
+      raw_input: r.rawInput || null,
+      expense_date: r.expenseDate,
+      created_at: nowStr(),
+      source: r.source,
+      external_id: r.externalId,
+      import_batch_id: r.importBatchId,
+    });
+    inserted++;
+  }
+
+  for (const rf of refunds) {
+    if (rf.amountCents <= 0) continue;
+    if (importAdjustments.some(a => a.source === rf.source && a.refund_external_id === rf.refundExternalId)) continue;
+    const expense = expenses.find(e => e.id === rf.expenseId);
+    if (!expense) continue;
+    const cat = categories.find(c => c.id === expense.category_id);
+    if (cat?.type !== 'expense') continue;
+
+    const snapshot = JSON.stringify(expense);
+    const newCents = Math.round(expense.amount * 100) - rf.amountCents;
+    let newAmount: number | null = null;
+    if (newCents <= 0) {
+      const i = expenses.findIndex(e => e.id === expense.id);
+      if (i >= 0) expenses.splice(i, 1);
+    } else {
+      newAmount = newCents / 100;
+      expense.amount = newAmount;
+    }
+    importAdjustments.push({
+      id: nextAdjustmentId++,
+      batch_id: batch.id,
+      expense_id: expense.id,
+      source: rf.source,
+      refund_external_id: rf.refundExternalId,
+      snapshot,
+      new_amount: newAmount,
+      created_at: nowStr(),
+    });
+    adjusted++;
+  }
+
+  if (inserted > 0 || adjusted > 0) {
+    importBatches.unshift({
+      id: batch.id,
+      source: batch.source,
+      file_name: batch.fileName,
+      total_rows: batch.totalRows,
+      imported_count: inserted,
+      skipped_count: Math.max(0, batch.totalRows - inserted - adjusted),
+      adjusted_count: adjusted,
+      created_at: nowStr(),
+    });
+  }
+  return { inserted, skipped: rows.length - inserted, adjusted };
+}
+
+export async function getImportedExternalIds(source: BillSource): Promise<Set<string>> {
+  const ids = new Set(
+    expenses
+      .filter(e => e.source === source && e.external_id)
+      .map(e => e.external_id as string),
+  );
+  for (const adj of importAdjustments) {
+    if (adj.source !== source || adj.new_amount !== null) continue;
+    try {
+      const snap = JSON.parse(adj.snapshot) as Expense;
+      if (snap.external_id) ids.add(snap.external_id);
+    } catch {
+      // ignore
+    }
+  }
+  return ids;
+}
+
+export async function getExpensesInRange(startDate: string, endDate: string): Promise<ExpenseWithCategory[]> {
+  return expenses
+    .filter(e => e.expense_date >= startDate && e.expense_date <= endDate)
+    .sort((a, b) => a.expense_date.localeCompare(b.expense_date))
+    .map(withCategory);
+}
+
+export async function getProcessedRefundIds(source: BillSource): Promise<Set<string>> {
+  return new Set(
+    importAdjustments.filter(a => a.source === source).map(a => a.refund_external_id),
+  );
+}
+
+export async function findExpenseByExternalId(source: BillSource, externalId: string): Promise<ExpenseWithCategory | null> {
+  const e = expenses.find(x => x.source === source && x.external_id === externalId);
+  return e ? withCategory(e) : null;
+}
+
+export interface RefundCandidateQuery {
+  source: BillSource;
+  date: string;
+  amountCents: number;
+  days?: number;
+}
+
+export async function findRefundCandidates(q: RefundCandidateQuery): Promise<ExpenseWithCategory[]> {
+  const days = q.days ?? 180;
+  const d = new Date(`${q.date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - days);
+  const start = d.toISOString().slice(0, 10);
+  return expenses
+    .filter(e => {
+      const cat = categories.find(x => x.id === e.category_id);
+      return cat?.type === 'expense'
+        && e.expense_date <= q.date
+        && e.expense_date >= start
+        && Math.round(e.amount * 100) >= q.amountCents - 1
+        && (e.source === q.source || !e.source);
+    })
+    .sort((a, b) => b.expense_date.localeCompare(a.expense_date))
+    .slice(0, 40)
+    .map(withCategory);
+}
+
+export async function getImportBatches(limit = 10): Promise<ImportBatch[]> {
+  return importBatches.slice(0, limit);
+}
+
+export async function undoImportBatch(id: string): Promise<number> {
+  let deleted = 0;
+
+  const adjustments = importAdjustments.filter(a => a.batch_id === id).sort((a, b) => b.id - a.id);
+  for (const adj of adjustments) {
+    let snap: Expense;
+    try {
+      snap = JSON.parse(adj.snapshot) as Expense;
+    } catch {
+      continue;
+    }
+    if (adj.new_amount === null) {
+      if (!expenses.some(e => e.id === snap.id)) expenses.push({ ...snap });
+    } else {
+      const e = expenses.find(x => x.id === adj.expense_id);
+      if (e) e.amount = snap.amount;
+    }
+  }
+
+  for (let i = importAdjustments.length - 1; i >= 0; i--) {
+    const adj = importAdjustments[i];
+    if (adj.batch_id === id) { importAdjustments.splice(i, 1); continue; }
+    const target = expenses.find(e => e.id === adj.expense_id);
+    if (target?.import_batch_id === id) importAdjustments.splice(i, 1);
+  }
+
+  for (let i = expenses.length - 1; i >= 0; i--) {
+    if (expenses[i].import_batch_id === id) { expenses.splice(i, 1); deleted++; }
+  }
+  const bi = importBatches.findIndex(b => b.id === id);
+  if (bi >= 0) importBatches.splice(bi, 1);
+  return deleted;
 }
 
 export async function getExpenses(params: {
@@ -598,11 +798,13 @@ export interface BackupData {
   settings: { key: string; value: string }[];
   customRules: CustomRule[];
   fixedItems: FixedItem[];
+  importBatches?: ImportBatch[];
+  importAdjustments?: ImportAdjustment[];
 }
 
 export async function exportAllData(): Promise<BackupData> {
   return {
-    version: '1.1.0',
+    version: '1.2.0',
     exportedAt: new Date().toISOString(),
     categories: categories.slice(),
     expenses: expenses.slice().sort((a, b) => b.expense_date.localeCompare(a.expense_date)),
@@ -610,6 +812,8 @@ export async function exportAllData(): Promise<BackupData> {
     settings: [...settingsMap.entries()].map(([key, value]) => ({ key, value })),
     customRules: customRules.slice(),
     fixedItems: fixedItems.slice(),
+    importBatches: importBatches.slice(),
+    importAdjustments: importAdjustments.slice(),
   };
 }
 
@@ -627,13 +831,46 @@ export async function importAllData(data: BackupData): Promise<{ imported: numbe
     imported++;
   }
 
+  const expenseIdMap = new Map<number, number>();
   for (const exp of data.expenses || []) {
+    const existing = exp.source && exp.external_id
+      ? expenses.find(e => e.source === exp.source && e.external_id === exp.external_id)
+      : undefined;
+    if (existing) {
+      expenseIdMap.set(exp.id, existing.id);
+      skipped++;
+      continue;
+    }
+    const id = nextExpenseId++;
     expenses.push({
-      id: nextExpenseId++, amount: exp.amount, category_id: exp.category_id,
+      id, amount: exp.amount, category_id: exp.category_id,
       description: exp.description, raw_input: exp.raw_input,
       expense_date: exp.expense_date, created_at: exp.created_at,
+      source: exp.source ?? null,
+      external_id: exp.external_id ?? null,
+      import_batch_id: exp.import_batch_id ?? null,
     });
+    expenseIdMap.set(exp.id, id);
     imported++;
+  }
+
+  for (const b of data.importBatches || []) {
+    if (!importBatches.some(x => x.id === b.id)) importBatches.push(b);
+  }
+
+  for (const adj of data.importAdjustments || []) {
+    const mapped = expenseIdMap.get(adj.expense_id);
+    if (!mapped) continue;
+    let snapshot = adj.snapshot;
+    try {
+      const snap = JSON.parse(snapshot);
+      delete snap.id;
+      snapshot = JSON.stringify(snap);
+    } catch {
+      // ignore
+    }
+    const id = nextAdjustmentId++;
+    importAdjustments.push({ ...adj, id, expense_id: mapped, snapshot });
   }
 
   // 预算与固定收支按 db.ts 语义：预算按月去重、固定项保留 id 追加

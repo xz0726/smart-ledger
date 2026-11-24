@@ -1,6 +1,6 @@
 {
   "name": "smart-ledger",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "main": "expo-router/entry",
   "dependencies": {
     "@expo/cli": "^57.0.31",
@@ -19,15 +19,19 @@
     "expo-sqlite": "^57.0.1",
     "expo-status-bar": "~57.0.1",
     "expo-system-ui": "~57.0.4",
+    "fflate": "^0.8.3",
     "lucide-react-native": "^1.24.0",
     "openai": "^6.47.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.0",
+    "react-native-keyboard-controller": "1.21.9",
+    "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "^5.8.0",
     "react-native-screens": "^4.26.1",
     "react-native-svg": "15.15.4",
     "react-native-web": "^0.21.2",
+    "text-encoding": "^0.7.0",
     "zustand": "^5.0.14"
   },
   "devDependencies": {

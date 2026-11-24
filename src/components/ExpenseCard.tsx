@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useThemeColors, type ThemeColors } from '../theme';
 import type { ExpenseWithCategory } from '../types';
+import { SOURCE_LABEL } from '../services/billImport/types';
 import { formatAmount } from '../utils/format';
 import { spacing, radius, fontSize } from '../theme/spacing';
 
@@ -25,7 +26,10 @@ export default function ExpenseCard({ expense, onPress, onLongPress }: Props) {
           <Text style={s.desc} numberOfLines={1}>
             {expense.description || expense.raw_input || expense.category_name}
           </Text>
-          <Text style={s.cat}>{expense.category_name}</Text>
+          <Text style={s.cat}>
+            {expense.category_name}
+            {expense.source ? <Text style={s.source}> · {SOURCE_LABEL[expense.source]}</Text> : null}
+          </Text>
         </View>
       </View>
       <Text style={[s.amount, expense.category_type === 'income' ? { color: c.success } : { color: c.text }]}>
@@ -43,5 +47,6 @@ const createStyles = (c: ThemeColors) => StyleSheet.create({
   info: { flex: 1 },
   desc: { fontSize: fontSize.base, color: c.text, fontWeight: '500' },
   cat: { fontSize: fontSize.sm, color: c.textSecondary, marginTop: 2 },
+  source: { color: c.hint },
   amount: { fontSize: fontSize.lg, fontWeight: '600' },
 });

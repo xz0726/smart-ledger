@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import type { Category, Expense, ExpenseWithCategory, Budget, BudgetWithCategory, StatsOverview, CategoryStats, DailyTrend, CustomRule, FixedItem, FixedItemWithCategory, QuickItemWithCategory, PendingCapture } from '../types';
+import type { Category, Expense, ExpenseWithCategory, Budget, BudgetWithCategory, StatsOverview, CategoryStats, DailyTrend, CustomRule, FixedItem, FixedItemWithCategory, QuickItemWithCategory, PendingCapture, BillSource, ImportBatch, ImportAdjustment } from '../types';
 import { isCurrentMonth } from '../utils/format';
 
 const FIXED_PREFIX = '[固定]';
@@ -99,7 +99,46 @@ async function migrate(db: SQLite.SQLiteDatabase): Promise<void> {
       status      TEXT NOT NULL DEFAULT 'pending',
       created_at  TEXT DEFAULT (datetime('now','localtime'))
     );
+
+    CREATE TABLE IF NOT EXISTS import_batches (
+      id             TEXT PRIMARY KEY,
+      source         TEXT NOT NULL,
+      file_name      TEXT NOT NULL,
+      total_rows     INTEGER NOT NULL,
+      imported_count INTEGER NOT NULL,
+      skipped_count  INTEGER NOT NULL,
+      adjusted_count INTEGER NOT NULL DEFAULT 0,
+      created_at     TEXT DEFAULT (datetime('now','localtime'))
+    );
+
+    CREATE TABLE IF NOT EXISTS import_adjustments (
+      id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+      batch_id           TEXT NOT NULL,
+      expense_id         INTEGER NOT NULL,
+      source             TEXT NOT NULL,
+      refund_external_id TEXT NOT NULL,
+      snapshot           TEXT NOT NULL,
+      new_amount         REAL,
+      created_at         TEXT DEFAULT (datetime('now','localtime'))
+    );
   `);
+
+  // 账单导入字段：老库没有版本表，按列存在性补 ALTER
+  const cols = db.getAllSync<{ name: string }>('PRAGMA table_info(expenses)');
+  const names = new Set(cols.map(c => c.name));
+  if (!names.has('source')) db.execSync('ALTER TABLE expenses ADD COLUMN source TEXT');
+  if (!names.has('external_id')) db.execSync('ALTER TABLE expenses ADD COLUMN external_id TEXT');
+  if (!names.has('import_batch_id')) db.execSync('ALTER TABLE expenses ADD COLUMN import_batch_id TEXT');
+  db.execSync('CREATE UNIQUE INDEX IF NOT EXISTS idx_expenses_external ON expenses(source, external_id) WHERE external_id IS NOT NULL');
+  db.execSync('CREATE INDEX IF NOT EXISTS idx_expenses_import_batch ON expenses(import_batch_id)');
+
+  const batchCols = db.getAllSync<{ name: string }>('PRAGMA table_info(import_batches)');
+  if (!batchCols.some(c => c.name === 'adjusted_count')) {
+    db.execSync('ALTER TABLE import_batches ADD COLUMN adjusted_count INTEGER NOT NULL DEFAULT 0');
+  }
+  db.execSync('CREATE UNIQUE INDEX IF NOT EXISTS idx_import_adjustments_refund ON import_adjustments(source, refund_external_id)');
+  db.execSync('CREATE INDEX IF NOT EXISTS idx_import_adjustments_batch ON import_adjustments(batch_id)');
+  db.execSync('CREATE INDEX IF NOT EXISTS idx_import_adjustments_expense ON import_adjustments(expense_id)');
 }
 
 // ===================== 种子分类 =====================
@@ -258,6 +297,262 @@ export async function addExpense(
     [amount, categoryId, description || null, rawInput || null, expenseDate]
   );
   return result.lastInsertRowId;
+}
+
+// ===================== 账单导入 =====================
+
+export interface ImportedExpenseInput {
+  amount: number;
+  categoryId: number;
+  expenseDate: string;
+  description: string;
+  rawInput: string;
+  source: BillSource;
+  externalId: string;
+  importBatchId: string;
+}
+
+export interface ImportBatchInput {
+  id: string;
+  source: BillSource;
+  fileName: string;
+  totalRows: number;
+  skippedCount: number;
+}
+
+export interface RefundAdjustmentInput {
+  source: BillSource;
+  refundExternalId: string;
+  expenseId: number;
+  amountCents: number;
+}
+
+/** 批量写入账单导入记录；唯一索引保证重复单号被忽略 */
+export async function insertImportedExpenses(
+  rows: ImportedExpenseInput[],
+  batch: ImportBatchInput,
+  refunds: RefundAdjustmentInput[] = [],
+): Promise<{ inserted: number; skipped: number; adjusted: number }> {
+  const database = getDb();
+  let inserted = 0;
+  let adjusted = 0;
+
+  database.withTransactionSync(() => {
+    const sql = `INSERT OR IGNORE INTO expenses
+      (amount, category_id, description, raw_input, expense_date, source, external_id, import_batch_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+    const stmt = rows.length > 500 ? database.prepareSync(sql) : null;
+    try {
+      for (const r of rows) {
+        const params = [
+          r.amount,
+          r.categoryId,
+          r.description || null,
+          r.rawInput || null,
+          r.expenseDate,
+          r.source,
+          r.externalId,
+          r.importBatchId,
+        ];
+        const result = stmt ? stmt.executeSync(params) : database.runSync(sql, params);
+        if (result.changes > 0) inserted++;
+      }
+    } finally {
+      stmt?.finalizeSync();
+    }
+
+    // 跨月退款：冲减原支出；同一退款单号只处理一次
+    for (const rf of refunds) {
+      if (rf.amountCents <= 0) continue;
+      const processed = database.getFirstSync<{ id: number }>(
+        'SELECT id FROM import_adjustments WHERE source = ? AND refund_external_id = ? LIMIT 1',
+        [rf.source, rf.refundExternalId],
+      );
+      if (processed) continue;
+
+      const row = database.getFirstSync<Expense & { category_type: string | null }>(
+        `SELECT e.*, c.type as category_type
+         FROM expenses e LEFT JOIN categories c ON e.category_id = c.id
+         WHERE e.id = ?`,
+        [rf.expenseId],
+      );
+      if (!row || row.category_type !== 'expense') continue;
+
+      const newCents = Math.round(row.amount * 100) - rf.amountCents;
+      const snapshot = JSON.stringify(row);
+      let newAmount: number | null = null;
+
+      if (newCents <= 0) {
+        database.runSync('DELETE FROM expenses WHERE id = ?', [row.id]);
+      } else {
+        newAmount = newCents / 100;
+        database.runSync('UPDATE expenses SET amount = ? WHERE id = ?', [newAmount, row.id]);
+      }
+
+      database.runSync(
+        `INSERT INTO import_adjustments
+          (batch_id, expense_id, source, refund_external_id, snapshot, new_amount)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [batch.id, row.id, rf.source, rf.refundExternalId, snapshot, newAmount],
+      );
+      adjusted++;
+    }
+
+    if (inserted > 0 || adjusted > 0) {
+      const skippedCount = Math.max(0, batch.totalRows - inserted - adjusted);
+      database.runSync(
+        `INSERT OR REPLACE INTO import_batches
+          (id, source, file_name, total_rows, imported_count, skipped_count, adjusted_count)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [batch.id, batch.source, batch.fileName, batch.totalRows, inserted, skippedCount, adjusted],
+      );
+    }
+  });
+
+  return { inserted, skipped: rows.length - inserted, adjusted };
+}
+
+/** 该来源全部已导入交易单号（不限日期，避免用户改日期后漏判） */
+export async function getImportedExternalIds(source: BillSource): Promise<Set<string>> {
+  const database = getDb();
+  const rows = database.getAllSync<{ external_id: string }>(
+    'SELECT external_id FROM expenses WHERE source = ? AND external_id IS NOT NULL',
+    [source],
+  );
+  const ids = new Set(rows.map(r => r.external_id));
+
+  // 全额退款时原账目会被删除；快照里的 external_id 仍算「已处理」，避免重新导入原账单时又建一条
+  const deleted = database.getAllSync<{ snapshot: string }>(
+    'SELECT snapshot FROM import_adjustments WHERE source = ? AND new_amount IS NULL',
+    [source],
+  );
+  for (const row of deleted) {
+    try {
+      const snap = JSON.parse(row.snapshot) as Expense;
+      if (snap.external_id) ids.add(snap.external_id);
+    } catch {
+      // 快照损坏时忽略
+    }
+  }
+  return ids;
+}
+
+/** 按来源 + 交易单号找已有账目（支付宝跨月退款原单） */
+export async function findExpenseByExternalId(source: BillSource, externalId: string): Promise<ExpenseWithCategory | null> {
+  return getDb().getFirstSync<ExpenseWithCategory>(
+    `SELECT e.*, c.name as category_name, c.icon as category_icon, c.color as category_color, c.type as category_type
+     FROM expenses e LEFT JOIN categories c ON e.category_id = c.id
+     WHERE e.source = ? AND e.external_id = ?
+     LIMIT 1`,
+    [source, externalId],
+  );
+}
+
+export interface RefundCandidateQuery {
+  source: BillSource;
+  /** 退款日期 YYYY-MM-DD */
+  date: string;
+  amountCents: number;
+  days?: number;
+}
+
+/** 找可能的原支出：金额不小于退款额、发生在退款之前、同渠道或手工账 */
+export async function findRefundCandidates(q: RefundCandidateQuery): Promise<ExpenseWithCategory[]> {
+  const days = q.days ?? 180;
+  const d = new Date(`${q.date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - days);
+  const start = d.toISOString().slice(0, 10);
+  return getDb().getAllSync<ExpenseWithCategory>(
+    `SELECT e.*, c.name as category_name, c.icon as category_icon, c.color as category_color, c.type as category_type
+     FROM expenses e JOIN categories c ON e.category_id = c.id
+     WHERE c.type = 'expense'
+       AND e.expense_date <= ?
+       AND e.expense_date >= ?
+       AND ROUND(e.amount * 100) >= ?
+       AND (e.source = ? OR e.source IS NULL)
+     ORDER BY e.expense_date DESC
+     LIMIT 40`,
+    [q.date, start, q.amountCents - 1, q.source],
+  );
+}
+
+/** 该来源已处理过的退款单号（防止同一退款重复冲减） */
+export async function getProcessedRefundIds(source: BillSource): Promise<Set<string>> {
+  const rows = getDb().getAllSync<{ refund_external_id: string }>(
+    'SELECT refund_external_id FROM import_adjustments WHERE source = ?',
+    [source],
+  );
+  return new Set(rows.map(r => r.refund_external_id));
+}
+
+/** 日期范围内的已有账目（含分类类型），供模糊去重比对 */
+export async function getExpensesInRange(startDate: string, endDate: string): Promise<ExpenseWithCategory[]> {
+  return getDb().getAllSync<ExpenseWithCategory>(
+    `SELECT e.*, c.name as category_name, c.icon as category_icon, c.color as category_color, c.type as category_type
+     FROM expenses e
+     LEFT JOIN categories c ON e.category_id = c.id
+     WHERE e.expense_date BETWEEN ? AND ?
+     ORDER BY e.expense_date ASC`,
+    [startDate, endDate],
+  );
+}
+
+export async function getImportBatches(limit = 10): Promise<ImportBatch[]> {
+  return getDb().getAllSync<ImportBatch>(
+    'SELECT * FROM import_batches ORDER BY created_at DESC, id DESC LIMIT ?',
+    [limit],
+  );
+}
+
+/** 撤销整批导入：恢复被冲减的原账目，再删除本批次账目与批次记录 */
+export async function undoImportBatch(id: string): Promise<number> {
+  const database = getDb();
+  let deleted = 0;
+  database.withTransactionSync(() => {
+    // 先按倒序恢复本批次造成的跨月退款冲减
+    const adjustments = database.getAllSync<ImportAdjustment>(
+      'SELECT * FROM import_adjustments WHERE batch_id = ? ORDER BY id DESC',
+      [id],
+    );
+    for (const adj of adjustments) {
+      let snap: Expense;
+      try {
+        snap = JSON.parse(adj.snapshot) as Expense;
+      } catch {
+        continue;
+      }
+      if (adj.new_amount === null) {
+        database.runSync(
+          `INSERT OR IGNORE INTO expenses
+            (id, amount, category_id, description, raw_input, expense_date, created_at, source, external_id, import_batch_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            snap.id, snap.amount, snap.category_id, snap.description, snap.raw_input,
+            snap.expense_date, snap.created_at, snap.source ?? null, snap.external_id ?? null,
+            snap.import_batch_id ?? null,
+          ],
+        );
+      } else {
+        database.runSync('UPDATE expenses SET amount = ? WHERE id = ?', [snap.amount, adj.expense_id]);
+      }
+    }
+
+    // 本批次账目若被其他批次的退款冲减过，直接丢弃这些冲减记录（账目本身即将删除）
+    database.runSync(
+      'DELETE FROM import_adjustments WHERE expense_id IN (SELECT id FROM expenses WHERE import_batch_id = ?)',
+      [id],
+    );
+    database.runSync('DELETE FROM import_adjustments WHERE batch_id = ?', [id]);
+
+    const row = database.getFirstSync<{ cnt: number }>(
+      'SELECT COUNT(*) as cnt FROM expenses WHERE import_batch_id = ?',
+      [id],
+    );
+    deleted = row?.cnt ?? 0;
+    database.runSync('DELETE FROM expenses WHERE import_batch_id = ?', [id]);
+    database.runSync('DELETE FROM import_batches WHERE id = ?', [id]);
+  });
+  return deleted;
 }
 
 export async function getExpenses(params: {
@@ -813,6 +1108,8 @@ export interface BackupData {
   settings: { key: string; value: string }[];
   customRules: CustomRule[];
   fixedItems: FixedItem[];
+  importBatches?: ImportBatch[];
+  importAdjustments?: ImportAdjustment[];
 }
 
 export async function exportAllData(): Promise<BackupData> {
@@ -824,9 +1121,11 @@ export async function exportAllData(): Promise<BackupData> {
   const settings = database.getAllSync<{ key: string; value: string }>('SELECT * FROM settings');
   const customRules = database.getAllSync<CustomRule>('SELECT * FROM custom_rules');
   const fixedItems = database.getAllSync<FixedItem>('SELECT * FROM fixed_items');
+  const importBatches = database.getAllSync<ImportBatch>('SELECT * FROM import_batches ORDER BY created_at DESC');
+  const importAdjustments = database.getAllSync<ImportAdjustment>('SELECT * FROM import_adjustments ORDER BY id ASC');
 
   return {
-    version: '1.1.0',
+    version: '1.2.0',
     exportedAt: new Date().toISOString(),
     categories,
     expenses,
@@ -834,6 +1133,8 @@ export async function exportAllData(): Promise<BackupData> {
     settings,
     customRules,
     fixedItems,
+    importBatches,
+    importAdjustments,
   };
 }
 
@@ -867,13 +1168,74 @@ export async function importAllData(data: BackupData): Promise<{ imported: numbe
     imported++;
   }
 
-  // 导入消费记录
+  // 导入消费记录；带账单单号的行用 OR IGNORE 避免唯一索引冲突
+  const expenseIdMap = new Map<number, number>();
   for (const exp of data.expenses || []) {
-    database.runSync(
-      'INSERT INTO expenses (amount, category_id, description, raw_input, expense_date, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-      [exp.amount, exp.category_id, exp.description, exp.raw_input, exp.expense_date, exp.created_at]
+    const result = database.runSync(
+      `INSERT OR IGNORE INTO expenses
+        (amount, category_id, description, raw_input, expense_date, created_at, source, external_id, import_batch_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        exp.amount,
+        exp.category_id,
+        exp.description,
+        exp.raw_input,
+        exp.expense_date,
+        exp.created_at,
+        exp.source ?? null,
+        exp.external_id ?? null,
+        exp.import_batch_id ?? null,
+      ]
     );
-    imported++;
+    if (result.changes > 0) {
+      expenseIdMap.set(exp.id, result.lastInsertRowId);
+      imported++;
+    } else {
+      skipped++;
+      if (exp.source && exp.external_id) {
+        const existing = database.getFirstSync<{ id: number }>(
+          'SELECT id FROM expenses WHERE source = ? AND external_id = ? LIMIT 1',
+          [exp.source, exp.external_id],
+        );
+        if (existing) expenseIdMap.set(exp.id, existing.id);
+      }
+    }
+  }
+
+  // 导入批次记录（撤销导入用）
+  for (const b of data.importBatches || []) {
+    database.runSync(
+      `INSERT OR REPLACE INTO import_batches
+        (id, source, file_name, total_rows, imported_count, skipped_count, adjusted_count, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        b.id, b.source, b.file_name, b.total_rows, b.imported_count, b.skipped_count,
+        b.adjusted_count ?? 0, b.created_at || new Date().toISOString(),
+      ]
+    );
+  }
+
+  // 导入冲减记录（expense_id 按本次恢复出的新 id 映射）
+  for (const adj of data.importAdjustments || []) {
+    const mapped = expenseIdMap.get(adj.expense_id);
+    if (!mapped) continue;
+    let snapshot = adj.snapshot;
+    try {
+      const snap = JSON.parse(snapshot);
+      delete snap.id;
+      snapshot = JSON.stringify(snap);
+    } catch {
+      // 保留原快照
+    }
+    database.runSync(
+      `INSERT OR REPLACE INTO import_adjustments
+        (id, batch_id, expense_id, source, refund_external_id, snapshot, new_amount, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        adj.id, adj.batch_id, mapped, adj.source, adj.refund_external_id,
+        snapshot, adj.new_amount, adj.created_at || new Date().toISOString(),
+      ]
+    );
   }
 
   // 导入预算

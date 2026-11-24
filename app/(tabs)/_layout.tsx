@@ -2,10 +2,7 @@ import { Tabs } from 'expo-router';
 import { Home, ReceiptText, Settings } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { cardShadow, useThemeColors } from '../../src/theme';
-import { spacing, radius, fontSize } from '../../src/theme/spacing';
-
-/** Tab 栏内容区设计高度；系统导航栏（三键/手势）高度通过 insets.bottom 追加在下方 */
-const TAB_BAR_CONTENT_HEIGHT = 64;
+import { spacing, radius, fontSize, TAB_BAR_CONTENT_HEIGHT } from '../../src/theme/spacing';
 
 export default function TabLayout() {
   const c = useThemeColors();

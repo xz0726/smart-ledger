@@ -3,7 +3,7 @@
     "name": "智记账",
     "slug": "smart-ledger",
     "description": "智能记账 App：自然语言输入、AI 智能分类、固定收支自动记账、快捷记账、消费分析与深色模式",
-    "version": "1.7.0",
+    "version": "1.8.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",

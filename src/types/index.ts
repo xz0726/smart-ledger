@@ -8,6 +8,8 @@ export interface Category {
   parent_id: number | null;
 }
 
+export type BillSource = 'wechat' | 'alipay';
+
 export interface Expense {
   id: number;
   amount: number;
@@ -15,6 +17,37 @@ export interface Expense {
   description: string | null;
   raw_input: string | null;
   expense_date: string; // YYYY-MM-DD
+  created_at: string;
+  /** 账单导入来源；手工记账为 null */
+  source?: BillSource | null;
+  /** 账单交易单号，用于精确去重 */
+  external_id?: string | null;
+  /** 导入批次 id，用于整批撤销 */
+  import_batch_id?: string | null;
+}
+
+export interface ImportBatch {
+  id: string;
+  source: BillSource;
+  file_name: string;
+  total_rows: number;
+  imported_count: number;
+  skipped_count: number;
+  /** 跨月退款冲减的原账目笔数 */
+  adjusted_count?: number;
+  created_at: string;
+}
+
+export interface ImportAdjustment {
+  id: number;
+  batch_id: string;
+  expense_id: number;
+  source: BillSource;
+  refund_external_id: string;
+  /** 被冲减账目的原始行 JSON，撤销时用于恢复金额/重建已删除账目 */
+  snapshot: string;
+  /** 冲减后的金额；null 表示原账目被全额退款删除 */
+  new_amount: number | null;
   created_at: string;
 }
 

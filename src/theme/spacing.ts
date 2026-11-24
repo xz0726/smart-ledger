@@ -33,3 +33,6 @@ export const fontSize = {
   lg: 16,   // 账单金额
   xl: 20,   // 统计数值
 } as const;
+
+/** 底部 Tab 栏内容区高度（不含系统导航区；实际栏高 = 该值 + insets.bottom） */
+export const TAB_BAR_CONTENT_HEIGHT = 64;

@@ -2,6 +2,7 @@ import { Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as SystemUI from 'expo-system-ui';
+import { KeyboardProvider } from '../src/components/KeyboardCompat';
 import { useSettingsStore } from '../src/stores/settingsStore';
 import { syncFixedItems } from '../src/services/db';
 import { startNotifyCapture } from '../src/services/notifyCapture';
@@ -59,14 +60,26 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={navTheme}>
-      <StatusBar style={resolved === 'dark' ? 'light' : 'dark'} animated />
-      <Stack screenOptions={{ contentStyle: { backgroundColor: c.background } }}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="support" options={{ headerShown: false }} />
-      </Stack>
-      {note ? (
-        <WhatsNewModal visible={noteVisible} version={note.version} notes={note.notes} onClose={closeNote} />
-      ) : null}
+      <KeyboardProvider>
+        <StatusBar style={resolved === 'dark' ? 'light' : 'dark'} animated />
+        <Stack screenOptions={{ contentStyle: { backgroundColor: c.background } }}>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="support" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="bill-import"
+            options={{
+              title: '导入账单',
+              headerStyle: { backgroundColor: c.card },
+              headerTitleStyle: { color: c.text, fontWeight: '600', fontSize: 17 },
+              headerShadowVisible: false,
+              headerTintColor: c.primary,
+            }}
+          />
+        </Stack>
+        {note ? (
+          <WhatsNewModal visible={noteVisible} version={note.version} notes={note.notes} onClose={closeNote} />
+        ) : null}
+      </KeyboardProvider>
     </ThemeProvider>
   );
 }
