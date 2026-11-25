@@ -32,6 +32,12 @@ object PaymentCaptureBus {
     @Volatile var lastTargetPkg = ""
     @Volatile var lastTargetOutcome = ""
     @Volatile var lastTargetText = ""
+    // JS 是否已订阅事件（桥存在 ≠ 有人监听；有人监听时才直投，否则落缓冲）
+    @Volatile var jsListening = false
+
+    fun setJsListening(listening: Boolean) {
+        jsListening = listening
+    }
 
     fun markEvent(pkg: String, outcome: String) {
         eventCount++
@@ -56,11 +62,11 @@ object PaymentCaptureBus {
         listeners.remove(listener)
     }
 
-    /** 分发事件；返回是否有 JS 监听者接住（没有则调用方落盘缓冲，避免重复入库） */
+    /** 分发事件；返回 JS 是否真的在监听（否则调用方落盘缓冲，避免丢通知） */
     fun emit(source: String, title: String?, text: String?): Boolean {
         val snapshot = listeners.toList()
         for (l in snapshot) l(source, title, text)
-        return snapshot.isNotEmpty()
+        return jsListening && snapshot.isNotEmpty()
     }
 
     /** 捕获总开关（持久化在原生侧，App 未启动/被杀时也能生效） */

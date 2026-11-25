@@ -76,6 +76,11 @@ class PaymentCaptureModule(private val reactContext: ReactApplicationContext) :
         PaymentCaptureBus.clearBuffer(reactContext)
     }
 
+    @ReactMethod
+    fun setJsListening(listening: Boolean) {
+        PaymentCaptureBus.setJsListening(listening)
+    }
+
     /** 诊断状态：开关、服务连接、回调次数、最近一条通知的包名/处理结果 */
     @ReactMethod
     fun getCaptureStatus(promise: Promise) {
@@ -96,6 +101,7 @@ class PaymentCaptureModule(private val reactContext: ReactApplicationContext) :
             map.putString("lastTargetPkg", PaymentCaptureBus.lastTargetPkg)
             map.putString("lastTargetOutcome", PaymentCaptureBus.lastTargetOutcome)
             map.putString("lastTargetText", PaymentCaptureBus.lastTargetText)
+            map.putBoolean("jsListening", PaymentCaptureBus.jsListening)
             promise.resolve(map)
         } catch (e: Exception) {
             promise.reject("STATUS_FAILED", e.message, e)

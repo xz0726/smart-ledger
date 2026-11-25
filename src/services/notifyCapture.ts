@@ -31,6 +31,7 @@ export interface NotifyCaptureStatus {
   lastTargetPkg: string;
   lastTargetOutcome: string;
   lastTargetText: string;
+  jsListening: boolean;
 }
 
 /** 原生诊断状态（服务连接、回调次数、最近通知处理结果），仅 APK 可用 */
@@ -65,6 +66,22 @@ export async function setNotifyCaptureEnabled(v: boolean): Promise<void> {
 let started = false;
 let subscription: { remove(): void } | null = null;
 
+// JS 侧诊断：订阅时间与最近一次入库结果（显示在设置页，便于排查链路）
+let subscribedAt = 0;
+let lastIngestAt = 0;
+let lastIngestOutcome = '';
+let lastIngestText = '';
+
+export function getJsIngestDebug() {
+  return { subscribedAt, lastIngestAt, lastIngestOutcome, lastIngestText };
+}
+
+function markIngest(outcome: string, text: string) {
+  lastIngestAt = Date.now();
+  lastIngestOutcome = outcome;
+  lastIngestText = text.length > 60 ? text.slice(0, 60) : text;
+}
+
 /** App 启动时调用：同步原生开关，开启且已授权时开始捕获（含取出 App 被杀期间的落盘缓冲） */
 export async function startNotifyCapture(): Promise<void> {
   if (!native) return;
@@ -84,7 +101,11 @@ export async function startNotifyCapture(): Promise<void> {
     subscription = DeviceEventEmitter.addListener('onPaymentCapture', (e: { source: string; title: string; text: string }) => {
       void ingest(e?.source, e?.title, e?.text);
     });
-  } catch (e) {
+    subscribedAt = Date.now();
+    try { native.setJsListening?.(true); } catch {}
+  } catch (e: any) {
+    lastIngestOutcome = `start_error:${e?.message ?? e}`;
+    lastIngestAt = Date.now();
     console.error('startNotifyCapture failed:', e);
   }
 }
@@ -94,18 +115,23 @@ export function stopNotifyCapture(): void {
   subscription?.remove();
   subscription = null;
   started = false;
+  subscribedAt = 0;
+  try { native?.setJsListening?.(false); } catch {}
 }
 
 async function ingest(source: string | undefined, title: string | undefined, text: string | undefined): Promise<void> {
+  const raw = `${title || ''} ${text || ''}`.trim();
   try {
-    if (!source || (!title && !text)) return;
-    if (!(await isNotifyCaptureEnabled())) return; // 开关已关，丢弃在途事件
-    if (!isPaymentNotification(title, text)) return;
+    if (!source || (!title && !text)) { markIngest('empty_event', raw); return; }
+    if (!(await isNotifyCaptureEnabled())) { markIngest('disabled', raw); return; } // 开关已关，丢弃在途事件
+    if (!isPaymentNotification(title, text)) { markIngest('not_payment', raw); return; }
     const result = parsePaymentText(source as 'alipay' | 'wechat', title, text);
-    if (result.refunded) return; // 退款等不入账
+    if (result.refunded) { markIngest('refunded', raw); return; } // 退款等不入账
     const id = await addPendingCapture({ source: source as 'alipay' | 'wechat', title: title || '', text: text || '', amount: result.amount, direction: result.direction });
+    markIngest(id > 0 ? `added#${id}` : 'duplicate', raw);
     if (id > 0) DeviceEventEmitter.emit('onPendingCaptureAdded'); // 仪表盘卡片实时刷新
-  } catch (e) {
+  } catch (e: any) {
+    markIngest(`error:${e?.message ?? e}`, raw);
     console.error('ingest capture failed:', e);
   }
 }

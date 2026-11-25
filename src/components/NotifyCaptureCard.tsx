@@ -8,7 +8,7 @@ import { spacing, radius, fontSize } from '../theme/spacing';
 import {
   isNotifyCaptureAvailable, isListenerEnabled, isNotifyCaptureEnabled,
   setNotifyCaptureEnabled, startNotifyCapture,
-  getNotifyCaptureStatus, type NotifyCaptureStatus,
+  getNotifyCaptureStatus, getJsIngestDebug, type NotifyCaptureStatus,
 } from '../services/notifyCapture';
 
 const PKG_LABEL: Record<string, string> = {
@@ -43,6 +43,7 @@ export default function NotifyCaptureCard() {
   const [enabled, setEnabled] = useState(false);
   const [granted, setGranted] = useState(false);
   const [status, setStatus] = useState<NotifyCaptureStatus | null>(null);
+  const [jsDebug, setJsDebug] = useState(getJsIngestDebug());
   const c = useThemeColors();
   const s = useMemo(() => createStyles(c), [c]);
 
@@ -55,6 +56,7 @@ export default function NotifyCaptureCard() {
     // 用户刚在系统设置授权后回到 App：开关已开则立即开始监听
     if (on && ok) await startNotifyCapture();
     setStatus(await getNotifyCaptureStatus());
+    setJsDebug(getJsIngestDebug());
   }, []);
 
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
@@ -106,6 +108,13 @@ export default function NotifyCaptureCard() {
               ? ` · 微信/支付宝 ${status.targetCount} 次：${fmtTime(status.lastTargetAt)} ${PKG_LABEL[status.lastTargetPkg] || status.lastTargetPkg} ${OUTCOME_LABEL[status.lastTargetOutcome] || status.lastTargetOutcome}${status.lastTargetOutcome === 'no_keyword' && status.lastTargetText ? `「${status.lastTargetText}」` : ''}`
               : ' · 暂无微信/支付宝通知'}
             （点此刷新）
+          </Text>
+          <Text style={s.diag} numberOfLines={3}>
+            JS：{jsDebug.subscribedAt > 0 ? `已订阅 ${fmtTime(jsDebug.subscribedAt)}` : '未订阅'}
+            {' · '}原生监听 {status.jsListening ? '是' : '否'}
+            {jsDebug.lastIngestAt > 0
+              ? ` · 最近入库 ${fmtTime(jsDebug.lastIngestAt)} ${jsDebug.lastIngestOutcome}${jsDebug.lastIngestText ? `「${jsDebug.lastIngestText}」` : ''}`
+              : ''}
           </Text>
         </TouchableOpacity>
       ) : null}
