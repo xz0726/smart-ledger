@@ -91,8 +91,9 @@ export function dedupeTransactions(
       continue;
     }
 
+    // 疑似重复只比对同一天：跨天同金额更可能是不同消费，交给用户自行判断
     const candidates = (buckets.get(tx.amountCents) ?? [])
-      .filter(e => dayDiff(e.expense_date, tx.date) <= 1);
+      .filter(e => dayDiff(e.expense_date, tx.date) === 0);
 
     let strong: { existing: ExistingExpenseForDedupe; reason: DuplicateMatch['reason']; score: number } | null = null;
     let weak: ExistingExpenseForDedupe | null = null;

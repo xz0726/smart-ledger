@@ -20,6 +20,7 @@ import { parseBillFile } from '../src/services/billImport';
 import { classifyTransactions } from '../src/services/billImport/classify';
 import { dedupeTransactions } from '../src/services/billImport/dedupe';
 import { isRefundInFile, pickRefundTarget, refundBaseExternalId } from '../src/services/billImport/refundMatch';
+import { isUncategorized, selectReviewTxs } from '../src/services/billImport/review';
 import {
   SOURCE_LABEL, SKIP_REASON_LABEL,
   type ParseResult, type ClassifiedBillTx, type DedupeResult, type CrossMonthRefund,
@@ -27,7 +28,7 @@ import {
 } from '../src/services/billImport/types';
 
 type Phase = 'idle' | 'parsing' | 'preview' | 'importing' | 'done';
-type Filter = 'import' | 'dup' | 'refund' | 'skipped';
+type Filter = 'import' | 'review' | 'dup' | 'refund' | 'skipped';
 
 type PreviewItem =
   | { kind: 'header'; key: string; month: string }
@@ -141,6 +142,17 @@ export default function BillImportScreen() {
     [effectiveTxs, dupeResult],
   );
 
+  // 待确认：可导入里分到「其他」/低置信度，或只有弱疑似重复提示的行
+  const reviewTxs = useMemo(
+    () => selectReviewTxs(effectiveTxs, dupeResult),
+    [effectiveTxs, dupeResult],
+  );
+
+  // 审核完（待确认归零）后自动回到可导入，避免停留在已隐藏的空 tab
+  useEffect(() => {
+    if (filter === 'review' && reviewTxs.length === 0) setFilter('import');
+  }, [filter, reviewTxs.length]);
+
   const skippedDisplay = useMemo(() => {
     if (!parseResult) return [];
     const out: SkippedRow[] = [...parseResult.skipped];
@@ -200,7 +212,11 @@ export default function BillImportScreen() {
       return items;
     }
 
-    const source = filter === 'import' ? importable : filter === 'dup' ? strongDup : null;
+    const source =
+      filter === 'import' ? importable
+        : filter === 'review' ? reviewTxs
+          : filter === 'dup' ? strongDup
+            : null;
     if (source) {
       const byMonth = new Map<string, ClassifiedBillTx[]>();
       for (const tx of source) {
@@ -240,7 +256,7 @@ export default function BillImportScreen() {
       }
     }
     return items;
-  }, [filter, importable, strongDup, skippedDisplay, crossRefunds, monthFilter, dupeResult]);
+  }, [filter, importable, reviewTxs, strongDup, skippedDisplay, crossRefunds, monthFilter, dupeResult]);
 
   const loadBatches = useCallback(async () => {
     try { setBatches(await getImportBatches(8)); } catch (e) { console.error(e); }
@@ -403,6 +419,8 @@ export default function BillImportScreen() {
       tx(4, '上海市普陀区人民医院', '门诊费用', 11115, shiftDate(day, -1)),
       tx(5, '万达影城', '电影票', 4500, shiftDate(day, -2)),
       tx(6, '瑞幸咖啡', '生椰拿铁', 990, shiftDate(day, -2)),
+      // 无关键词命中 → 分到「其他」，用于演示「待确认」tab
+      tx(10, '演示商户', '无匹配项', 1234),
     ];
 
     const skipped: SkippedRow[] = [
@@ -424,12 +442,12 @@ export default function BillImportScreen() {
       meta: {
         source: 'wechat',
         fileName: '示例账单.xlsx',
-        totalRows: 9,
-        rawExpenseRows: 6,
-        rawExpenseCents: 2000 + 400 + 8900 + 11115 + 4500 + 990,
+        totalRows: 10,
+        rawExpenseRows: 7,
+        rawExpenseCents: 2000 + 400 + 8900 + 11115 + 4500 + 990 + 1234,
         dateStart: shiftDate(day, -2),
         dateEnd: day,
-        headline: { totalRows: 9, expenseRows: 6 },
+        headline: { totalRows: 10, expenseRows: 7 },
         warnings: [],
       },
       transactions: rows,
@@ -567,7 +585,17 @@ export default function BillImportScreen() {
     setProcessedRefundIds(new Set());
     setDone(null);
     setPickerUid(null);
+    setFilter('import');
+    setMonthFilter('all');
   }, []);
+
+  // 预览页「不想导了」：确认后清空解析结果，回到选文件页（不离开页面）
+  const cancelImport = useCallback(() => {
+    Alert.alert('放弃本次导入？', '当前解析结果和已选账目会被清空，可以重新选择文件。', [
+      { text: '继续查看', style: 'cancel' },
+      { text: '放弃导入', style: 'destructive', onPress: resetToIdle },
+    ]);
+  }, [resetToIdle]);
 
   const handleUndo = useCallback((batch: ImportBatch) => {
     const adjustedNote = (batch.adjusted_count ?? 0) > 0
@@ -684,7 +712,7 @@ export default function BillImportScreen() {
             >
               <Text style={s.catText}>{cat?.icon ?? '📦'} {tx.categoryName}</Text>
             </TouchableOpacity>
-            {tx.confidence === 'low' ? <Text style={s.pending}>待确认</Text> : null}
+            {isUncategorized(tx) ? <Text style={s.pending}>待确认</Text> : null}
             {strong ? <Text style={s.strong}>疑似重复</Text> : null}
           </View>
           {strong && match ? (
@@ -824,6 +852,9 @@ export default function BillImportScreen() {
   const monthOptions = ['all', ...months];
   const filterDefs: Array<[Filter, string]> = [
     ['import', `可导入 ${importable.length}`],
+    ...(reviewTxs.length > 0
+      ? [['review', `待确认 ${reviewTxs.length}`] as [Filter, string]]
+      : []),
     ['dup', `疑似重复 ${strongDup.length}`],
     ...(crossRefunds.length > 0
       ? [['refund', `跨月退款 ${crossRefunds.length}`] as [Filter, string]]
@@ -835,6 +866,9 @@ export default function BillImportScreen() {
     <View style={s.page}>
       <View style={s.summary}>
         <View style={s.summaryTop}>
+          <TouchableOpacity onPress={cancelImport} hitSlop={10} style={s.cancelBtn}>
+            <Text style={s.cancelText}>取消</Text>
+          </TouchableOpacity>
           <Text style={s.summaryName} numberOfLines={1}>{parseResult.fileName}</Text>
           <Text style={s.summaryRange}>
             {parseResult.meta.dateStart ? `${parseResult.meta.dateStart} ~ ${parseResult.meta.dateEnd}` : '无日期'}
@@ -857,17 +891,25 @@ export default function BillImportScreen() {
         ) : null}
       </View>
 
-      <View style={s.filterRow}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}
+        style={s.filterRow} contentContainerStyle={s.filterRowContent}>
         {filterDefs.map(([key, label]) => (
           <TouchableOpacity
             key={key}
             style={[s.filterChip, filter === key && s.filterChipOn]}
-            onPress={() => setFilter(key)}
+            onPress={() => {
+              // 待确认的数字是全局口径：当前月份筛不到时先归到全部月份
+              if (key === 'review' && monthFilter !== 'all'
+                  && !reviewTxs.some(tx => tx.date.startsWith(monthFilter))) {
+                setMonthFilter('all');
+              }
+              setFilter(key);
+            }}
           >
             <Text style={[s.filterText, filter === key && s.filterTextOn]}>{label}</Text>
           </TouchableOpacity>
         ))}
-      </View>
+      </ScrollView>
 
       {months.length > 1 ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.monthBar} contentContainerStyle={s.monthBarContent}>
@@ -894,7 +936,11 @@ export default function BillImportScreen() {
         initialNumToRender={20}
         windowSize={10}
         removeClippedSubviews
-        ListEmptyComponent={<Text style={s.empty}>这里还没有记录</Text>}
+        ListEmptyComponent={<Text style={s.empty}>
+          {filter === 'review'
+            ? (monthFilter === 'all' ? '没有待确认的账目' : '当前月份没有待确认的账目')
+            : '这里还没有记录'}
+        </Text>}
         ListHeaderComponent={filter === 'import' ? (
           <View style={s.selectAllRow}>
             <TouchableOpacity style={s.selectAllBtn} onPress={toggleAll}>
@@ -1032,16 +1078,19 @@ const createStyles = (c: ThemeColors, bottomInset: number) => StyleSheet.create(
   summaryTop: { flexDirection: 'row', alignItems: 'center' },
   summaryName: { flex: 1, fontSize: fontSize.base, fontWeight: '600', color: c.text },
   summaryRange: { fontSize: fontSize.xs, color: c.hint, marginLeft: spacing.sm },
+  cancelBtn: { marginRight: spacing.sm, paddingVertical: 2, paddingHorizontal: 2 },
+  cancelText: { fontSize: fontSize.sm, color: c.primary, fontWeight: '500' },
   summaryStats: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md },
   stat: { fontSize: fontSize.xs, color: c.textSecondary },
   statNum: { fontSize: fontSize.lg, fontWeight: '600', color: c.text },
   warnRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing.md },
   warnText: { flex: 1, fontSize: fontSize.xs, color: c.warning },
 
-  filterRow: { flexDirection: 'row', paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.sm },
+  filterRow: { flexGrow: 0, maxHeight: 46, marginTop: spacing.md },
+  filterRowContent: { paddingHorizontal: spacing.lg, gap: spacing.sm, alignItems: 'center' },
   filterChip: {
-    flex: 1, paddingVertical: spacing.sm, borderRadius: radius.pill,
-    backgroundColor: c.subtle, alignItems: 'center',
+    flexShrink: 0, paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+    borderRadius: radius.pill, backgroundColor: c.subtle, alignItems: 'center',
   },
   filterChipOn: { backgroundColor: c.primarySoftBg },
   filterText: { fontSize: fontSize.sm, color: c.textSecondary },

@@ -77,7 +77,7 @@ export default function EditExpenseModal({ visible, expense, onClose, onSave }: 
               <Text style={s.label}>金额</Text>
               <View style={s.amountRow}>
                 <Text style={s.yuan}>¥</Text>
-                <TextInput style={s.amountInput} value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="0.00" placeholderTextColor={c.disabled} autoFocus />
+                <TextInput style={s.amountInput} value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="0.00" placeholderTextColor={c.disabled} />
               </View>
               <Text style={s.label}>分类</Text>
               <View style={s.catGrid}>

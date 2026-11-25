@@ -130,7 +130,7 @@ function isSimilarDescription(tx, existing) {
 }
 
 function dedupeMatch(tx, existing) {
-  if (dayDiff(existing.expense_date, tx.date) > 1) return null;
+  if (dayDiff(existing.expense_date, tx.date) !== 0) return null;
   const cat = existing.category_id === tx.categoryId || existing.category_name === tx.categoryName;
   const desc = isSimilarDescription(tx, existing);
   const uncertain = tx.confidence === 'low' || tx.categoryName === '其他' || existing.category_name === '其他';
@@ -138,6 +138,25 @@ function dedupeMatch(tx, existing) {
   if (desc) return { level: 'strong', reason: 'similar_description' };
   if (uncertain) return { level: 'strong', reason: 'uncertain_category' };
   return { level: 'weak', reason: 'same_amount_date' };
+}
+
+// src/services/billImport/review.ts 的镜像
+function isUncategorized(tx) {
+  return tx.categoryName === '其他' || tx.confidence === 'low';
+}
+
+function reviewReason(tx, match) {
+  if (match?.level === 'strong') return null;
+  if (isUncategorized(tx)) return 'uncategorized';
+  if (match?.level === 'weak') return 'weak_duplicate';
+  return null;
+}
+
+function selectReviewTxs(txs, dupe) {
+  return txs.filter(tx => {
+    if (dupe.exactUids.has(tx.uid) || dupe.fileDuplicateUids.has(tx.uid)) return false;
+    return reviewReason(tx, dupe.matches.get(tx.uid)) !== null;
+  });
 }
 
 function refundBaseExternalId(tx) {
@@ -309,9 +328,9 @@ describe('账单导入 · 去重', () => {
     assertEquals(m.reason, 'similar_description');
   });
 
-  test('日期差超过 1 天不比配', () => {
-    const m = dedupeMatch(tx, { ...dinner, expense_date: '2026-11-22' });
-    assertEquals(m, null);
+  test('日期不同（含相差 1 天）不参与比对', () => {
+    assertEquals(dedupeMatch(tx, { ...dinner, expense_date: '2026-11-23' }), null);
+    assertEquals(dedupeMatch(tx, { ...dinner, expense_date: '2026-11-22' }), null);
   });
 });
 
@@ -377,5 +396,52 @@ describe('账单导入 · 分类与长跨度', () => {
     const months = new Set();
     for (let m = 1; m <= 12; m++) months.add(`2026-${pad2(m)}`);
     assertEquals(months.size, 12);
+  });
+});
+
+describe('账单导入 · 待确认', () => {
+  const other = { uid: 'a', categoryName: '其他', confidence: 'low' };
+  const normal = { uid: 'b', categoryName: '餐饮', confidence: 'high' };
+  const weak = { level: 'weak' };
+  const strong = { level: 'strong' };
+
+  test('分类为其他 → 收录', () => {
+    assertEquals(reviewReason(other, undefined), 'uncategorized');
+  });
+
+  test('普通分类 + 弱疑似重复 → 收录', () => {
+    assertEquals(reviewReason(normal, weak), 'weak_duplicate');
+  });
+
+  test('普通分类、无匹配 → 不收录', () => {
+    assertEquals(reviewReason(normal, undefined), null);
+  });
+
+  test('强疑似重复归「疑似重复」，不进待确认', () => {
+    assertEquals(reviewReason(other, strong), null);
+    assertEquals(reviewReason(normal, strong), null);
+  });
+
+  test('其他 + 弱匹配时 reason 优先未分类', () => {
+    assertEquals(reviewReason(other, weak), 'uncategorized');
+  });
+
+  test('自定义规则映射到其他（high）仍收录', () => {
+    assertEquals(reviewReason({ categoryName: '其他', confidence: 'high' }, undefined), 'uncategorized');
+  });
+
+  test('删除「其他」分类后的 low fallback（名字非其他）仍收录', () => {
+    assertEquals(reviewReason({ categoryName: '餐饮', confidence: 'low' }, undefined), 'uncategorized');
+  });
+
+  test('精确重复 / 文件内重复不进待确认', () => {
+    const dupe = { exactUids: new Set(['b']), fileDuplicateUids: new Set(['c']), matches: new Map() };
+    const txs = [other, normal, { uid: 'c', categoryName: '其他', confidence: 'low' }];
+    assertEquals(selectReviewTxs(txs, dupe).map(t => t.uid).join(','), 'a');
+  });
+
+  test('可导入里的弱重复行进入待确认', () => {
+    const dupe = { exactUids: new Set(), fileDuplicateUids: new Set(), matches: new Map([['b', weak]]) };
+    assertEquals(selectReviewTxs([other, normal], dupe).map(t => t.uid).join(','), 'a,b');
   });
 });
