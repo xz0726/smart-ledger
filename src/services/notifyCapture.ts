@@ -26,6 +26,11 @@ export interface NotifyCaptureStatus {
   lastEventAt: number;
   lastPkg: string;
   lastOutcome: string;
+  targetCount: number;
+  lastTargetAt: number;
+  lastTargetPkg: string;
+  lastTargetOutcome: string;
+  lastTargetText: string;
 }
 
 /** 原生诊断状态（服务连接、回调次数、最近通知处理结果），仅 APK 可用 */

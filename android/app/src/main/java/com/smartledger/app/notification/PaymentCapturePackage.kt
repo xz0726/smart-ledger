@@ -91,6 +91,11 @@ class PaymentCaptureModule(private val reactContext: ReactApplicationContext) :
             map.putDouble("lastEventAt", PaymentCaptureBus.lastEventAt.toDouble())
             map.putString("lastPkg", PaymentCaptureBus.lastPkg)
             map.putString("lastOutcome", PaymentCaptureBus.lastOutcome)
+            map.putDouble("targetCount", PaymentCaptureBus.targetCount.toDouble())
+            map.putDouble("lastTargetAt", PaymentCaptureBus.lastTargetAt.toDouble())
+            map.putString("lastTargetPkg", PaymentCaptureBus.lastTargetPkg)
+            map.putString("lastTargetOutcome", PaymentCaptureBus.lastTargetOutcome)
+            map.putString("lastTargetText", PaymentCaptureBus.lastTargetText)
             promise.resolve(map)
         } catch (e: Exception) {
             promise.reject("STATUS_FAILED", e.message, e)

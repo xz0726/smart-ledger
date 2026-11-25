@@ -100,11 +100,11 @@ export default function NotifyCaptureCard() {
       )}
       {enabled && status ? (
         <TouchableOpacity onPress={refresh} activeOpacity={0.7}>
-          <Text style={s.diag}>
-            {status.connected ? '服务已连接' : '服务未连接'} · 回调 {status.eventCount} 次
-            {status.lastEventAt > 0
-              ? ` · 最近 ${fmtTime(status.lastEventAt)} ${PKG_LABEL[status.lastPkg] || status.lastPkg || '系统'} ${OUTCOME_LABEL[status.lastOutcome] || status.lastOutcome}`
-              : ''}
+          <Text style={s.diag} numberOfLines={4}>
+            {status.connected ? '服务已连接' : '服务未连接'} · 总回调 {status.eventCount} 次
+            {status.lastTargetAt > 0
+              ? ` · 微信/支付宝 ${status.targetCount} 次：${fmtTime(status.lastTargetAt)} ${PKG_LABEL[status.lastTargetPkg] || status.lastTargetPkg} ${OUTCOME_LABEL[status.lastTargetOutcome] || status.lastTargetOutcome}${status.lastTargetOutcome === 'no_keyword' && status.lastTargetText ? `「${status.lastTargetText}」` : ''}`
+              : ' · 暂无微信/支付宝通知'}
             （点此刷新）
           </Text>
         </TouchableOpacity>

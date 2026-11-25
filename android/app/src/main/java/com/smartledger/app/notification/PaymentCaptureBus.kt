@@ -26,12 +26,26 @@ object PaymentCaptureBus {
     @Volatile var lastEventAt = 0L
     @Volatile var lastPkg = ""
     @Volatile var lastOutcome = ""
+    // 只统计微信/支付宝的通知，避免被其它 App 的高频通知覆盖
+    @Volatile var targetCount = 0L
+    @Volatile var lastTargetAt = 0L
+    @Volatile var lastTargetPkg = ""
+    @Volatile var lastTargetOutcome = ""
+    @Volatile var lastTargetText = ""
 
     fun markEvent(pkg: String, outcome: String) {
         eventCount++
         lastEventAt = System.currentTimeMillis()
         lastPkg = pkg
         lastOutcome = outcome
+    }
+
+    fun markTarget(pkg: String, outcome: String, text: String) {
+        targetCount++
+        lastTargetAt = System.currentTimeMillis()
+        lastTargetPkg = pkg
+        lastTargetOutcome = outcome
+        lastTargetText = if (text.length > 80) text.substring(0, 80) else text
     }
 
     fun addListener(listener: (source: String, title: String?, text: String?) -> Unit) {
@@ -132,11 +146,13 @@ class PaymentNotificationListener : NotificationListenerService() {
             if (!PaymentCaptureBus.isEnabled(this)) {
                 Log.d(TAG, "skip: capture disabled pkg=$pkg")
                 PaymentCaptureBus.markEvent(pkg, "disabled")
+                PaymentCaptureBus.markTarget(pkg, "disabled", "")
                 return
             }
 
             val extra = sbn.notification?.extras ?: run {
                 PaymentCaptureBus.markEvent(pkg, "no_extras")
+                PaymentCaptureBus.markTarget(pkg, "no_extras", "")
                 return
             }
             val title = extra.getCharSequence(android.app.Notification.EXTRA_TITLE)?.toString()
@@ -154,11 +170,13 @@ class PaymentNotificationListener : NotificationListenerService() {
             if (full.isEmpty()) {
                 Log.d(TAG, "skip: empty content pkg=$pkg")
                 PaymentCaptureBus.markEvent(pkg, "empty")
+                PaymentCaptureBus.markTarget(pkg, "empty", "")
                 return
             }
             if (PAYMENT_KEYWORDS.none { full.contains(it) }) {
                 Log.d(TAG, "skip: no payment keyword pkg=$pkg")
                 PaymentCaptureBus.markEvent(pkg, "no_keyword")
+                PaymentCaptureBus.markTarget(pkg, "no_keyword", full)
                 return
             }
 
@@ -168,6 +186,7 @@ class PaymentNotificationListener : NotificationListenerService() {
             if (!delivered) PaymentCaptureBus.appendBuffer(applicationContext, source, title, body)
             Log.d(TAG, "captured pkg=$pkg delivered=$delivered")
             PaymentCaptureBus.markEvent(pkg, if (delivered) "captured_js" else "captured_buffer")
+            PaymentCaptureBus.markTarget(pkg, if (delivered) "captured_js" else "captured_buffer", full)
         } catch (e: Exception) {
             // 通知解析失败不影响系统服务
         }
