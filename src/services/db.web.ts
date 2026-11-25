@@ -798,13 +798,14 @@ export interface BackupData {
   settings: { key: string; value: string }[];
   customRules: CustomRule[];
   fixedItems: FixedItem[];
+  pendingCaptures?: PendingCapture[];
   importBatches?: ImportBatch[];
   importAdjustments?: ImportAdjustment[];
 }
 
 export async function exportAllData(): Promise<BackupData> {
   return {
-    version: '1.2.0',
+    version: '1.3.0',
     exportedAt: new Date().toISOString(),
     categories: categories.slice(),
     expenses: expenses.slice().sort((a, b) => b.expense_date.localeCompare(a.expense_date)),
@@ -812,6 +813,7 @@ export async function exportAllData(): Promise<BackupData> {
     settings: [...settingsMap.entries()].map(([key, value]) => ({ key, value })),
     customRules: customRules.slice(),
     fixedItems: fixedItems.slice(),
+    pendingCaptures: pendingCaptures.slice(),
     importBatches: importBatches.slice(),
     importAdjustments: importAdjustments.slice(),
   };
@@ -819,6 +821,14 @@ export async function exportAllData(): Promise<BackupData> {
 
 export async function importAllData(data: BackupData): Promise<{ imported: number; skipped: number }> {
   for (const s of data.settings || []) settingsMap.set(s.key, s.value);
+
+  // 恢复通知捕获记录；同来源+文本+时间的不重复写入
+  for (const pc of data.pendingCaptures || []) {
+    const dup = pendingCaptures.some(x =>
+      x.source === pc.source && x.text === pc.text && (x.created_at ?? '') === (pc.created_at ?? ''));
+    if (dup) continue;
+    pendingCaptures.push({ ...pc, id: nextPendingCaptureId++ });
+  }
 
   const existingNames = new Set(categories.map(c => c.name));
   let imported = 0;

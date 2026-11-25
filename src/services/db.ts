@@ -1108,6 +1108,8 @@ export interface BackupData {
   settings: { key: string; value: string }[];
   customRules: CustomRule[];
   fixedItems: FixedItem[];
+  /** 通知捕获的待确认记账（含已确认/已忽略，恢复时原样写回） */
+  pendingCaptures?: PendingCapture[];
   importBatches?: ImportBatch[];
   importAdjustments?: ImportAdjustment[];
 }
@@ -1121,11 +1123,12 @@ export async function exportAllData(): Promise<BackupData> {
   const settings = database.getAllSync<{ key: string; value: string }>('SELECT * FROM settings');
   const customRules = database.getAllSync<CustomRule>('SELECT * FROM custom_rules');
   const fixedItems = database.getAllSync<FixedItem>('SELECT * FROM fixed_items');
+  const pendingCaptures = database.getAllSync<PendingCapture>('SELECT * FROM pending_captures ORDER BY id ASC');
   const importBatches = database.getAllSync<ImportBatch>('SELECT * FROM import_batches ORDER BY created_at DESC');
   const importAdjustments = database.getAllSync<ImportAdjustment>('SELECT * FROM import_adjustments ORDER BY id ASC');
 
   return {
-    version: '1.2.0',
+    version: '1.3.0',
     exportedAt: new Date().toISOString(),
     categories,
     expenses,
@@ -1133,6 +1136,7 @@ export async function exportAllData(): Promise<BackupData> {
     settings,
     customRules,
     fixedItems,
+    pendingCaptures,
     importBatches,
     importAdjustments,
   };
@@ -1147,6 +1151,26 @@ export async function importAllData(data: BackupData): Promise<{ imported: numbe
       'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
       [s.key, s.value]
     );
+  }
+
+  // 恢复通知捕获记录（待确认/已确认/已忽略）；按 来源+文本+时间 去重，重复恢复不叠加
+  for (const pc of data.pendingCaptures || []) {
+    const dup = database.getFirstSync<{ id: number }>(
+      'SELECT id FROM pending_captures WHERE source = ? AND text = ? AND COALESCE(created_at, \'\') = COALESCE(?, \'\') LIMIT 1',
+      [pc.source, pc.text ?? '', pc.created_at ?? null],
+    );
+    if (dup) continue;
+    if (pc.created_at) {
+      database.runSync(
+        'INSERT INTO pending_captures (source, title, text, amount, direction, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [pc.source, pc.title ?? '', pc.text ?? '', pc.amount ?? null, pc.direction ?? 'expense', pc.status ?? 'pending', pc.created_at],
+      );
+    } else {
+      database.runSync(
+        'INSERT INTO pending_captures (source, title, text, amount, direction, status) VALUES (?, ?, ?, ?, ?, ?)',
+        [pc.source, pc.title ?? '', pc.text ?? '', pc.amount ?? null, pc.direction ?? 'expense', pc.status ?? 'pending'],
+      );
+    }
   }
 
   // 导入分类（跳过已存在的默认分类）

@@ -30,10 +30,11 @@
         <data android:scheme="smartledger"/>
       </intent-filter>
     </activity>
+    <!-- 必须 exported=true：系统（system_server）以其他 UID 绑定该服务，false 会导致永不连接、收不到任何通知 -->
     <service
       android:name=".notification.PaymentNotificationListener"
       android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
-      android:exported="false">
+      android:exported="true">
       <intent-filter>
         <action android:name="android.service.notification.NotificationListenerService"/>
       </intent-filter>

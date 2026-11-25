@@ -1,5 +1,5 @@
-import React, { useCallback, useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet } from 'react-native';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, DeviceEventEmitter } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Bell } from 'lucide-react-native';
 import CardTitle from './CardTitle';
@@ -37,6 +37,12 @@ export default function PendingCapturesCard() {
 
   useFocusEffect(useCallback(() => { load(); }, [load, revision]));
 
+  // 捕获到新支付通知时实时刷新（不用切页面）
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('onPendingCaptureAdded', () => { void load(); });
+    return () => sub.remove();
+  }, [load]);
+
   if (items.length === 0) return null;
 
   const toggleExpand = (item: PendingCapture) => {
@@ -48,7 +54,8 @@ export default function PendingCapturesCard() {
 
   const confirm = async (item: PendingCapture) => {
     const amount = parseFloat(amountText);
-    if (isNaN(amount) || amount <= 0) return; // 金额非法时不动作
+    // 金额或分类未就绪时不动作，避免写入 category_id = 0 的脏账目
+    if (isNaN(amount) || amount <= 0 || selectedCat === 0) return;
     await confirmPendingCapture(item.id, {
       categoryId: selectedCat,
       amount,
@@ -116,6 +123,7 @@ export default function PendingCapturesCard() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[s.confirmBtn, (selectedCat === 0 || !(parseFloat(amountText) > 0)) && { opacity: 0.5 }]}
+                    disabled={selectedCat === 0 || !(parseFloat(amountText) > 0)}
                     onPress={() => confirm(item)}>
                     <Text style={s.confirmText}>确认入账</Text>
                   </TouchableOpacity>

@@ -66,6 +66,38 @@ class PaymentCaptureModule(private val reactContext: ReactApplicationContext) :
     }
 
     @ReactMethod
+    fun setCaptureEnabled(enabled: Boolean) {
+        PaymentCaptureBus.setEnabled(reactContext, enabled)
+        if (!enabled) PaymentCaptureBus.clearBuffer(reactContext)
+    }
+
+    @ReactMethod
+    fun clearCaptureBuffer() {
+        PaymentCaptureBus.clearBuffer(reactContext)
+    }
+
+    /** 诊断状态：开关、服务连接、回调次数、最近一条通知的包名/处理结果 */
+    @ReactMethod
+    fun getCaptureStatus(promise: Promise) {
+        try {
+            val enabled = android.provider.Settings.Secure.getString(
+                reactContext.contentResolver, "enabled_notification_listeners"
+            )?.contains(reactContext.packageName) == true
+            val map: WritableMap = Arguments.createMap()
+            map.putBoolean("captureEnabled", PaymentCaptureBus.isEnabled(reactContext))
+            map.putBoolean("listenerGranted", enabled)
+            map.putBoolean("connected", PaymentCaptureBus.connected)
+            map.putDouble("eventCount", PaymentCaptureBus.eventCount.toDouble())
+            map.putDouble("lastEventAt", PaymentCaptureBus.lastEventAt.toDouble())
+            map.putString("lastPkg", PaymentCaptureBus.lastPkg)
+            map.putString("lastOutcome", PaymentCaptureBus.lastOutcome)
+            promise.resolve(map)
+        } catch (e: Exception) {
+            promise.reject("STATUS_FAILED", e.message, e)
+        }
+    }
+
+    @ReactMethod
     fun isListenerEnabled(promise: Promise) {
         try {
             val enabled = android.provider.Settings.Secure.getString(
