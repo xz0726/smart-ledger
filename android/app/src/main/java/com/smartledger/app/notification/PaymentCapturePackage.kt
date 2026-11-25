@@ -101,7 +101,7 @@ class PaymentCaptureModule(private val reactContext: ReactApplicationContext) :
             map.putString("lastTargetPkg", PaymentCaptureBus.lastTargetPkg)
             map.putString("lastTargetOutcome", PaymentCaptureBus.lastTargetOutcome)
             map.putString("lastTargetText", PaymentCaptureBus.lastTargetText)
-            map.putBoolean("jsListening", PaymentCaptureBus.jsListening)
+            map.putBoolean("jsListening", PaymentCaptureBus.jsListeningFlag)
             promise.resolve(map)
         } catch (e: Exception) {
             promise.reject("STATUS_FAILED", e.message, e)
